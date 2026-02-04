@@ -173,7 +173,7 @@ function render3DView(svg: SVGSVGElement, result: CalculationResult) {
 }
 
 /**
- * Render unfolded pattern view
+ * Render unfolded pattern view - Sector Ring (Annulus Sector)
  */
 function renderUnfoldedView(svg: SVGSVGElement, result: CalculationResult) {
   const width = 400;
@@ -189,7 +189,7 @@ function renderUnfoldedView(svg: SVGSVGElement, result: CalculationResult) {
   const angle = result.sectorAngleRad;
 
   // Scale to fit in view
-  const scale = Math.min(width, height) / (outerR * 2.2);
+  const scale = Math.min(width, height) / (outerR * 2.5);
   const scaledInnerR = innerR * scale;
   const scaledOuterR = outerR * scale;
 
@@ -198,84 +198,90 @@ function renderUnfoldedView(svg: SVGSVGElement, result: CalculationResult) {
     "http://www.w3.org/2000/svg",
     "g"
   );
-  patternGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
+  patternGroup.setAttribute("transform", `translate(${centerX}, ${centerY + 30})`);
 
-  // Draw inner arc
-  const innerArcPath = createArcPath(0, scaledInnerR, angle, false);
-  const innerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  innerArc.setAttribute("d", innerArcPath);
-  innerArc.setAttribute("stroke", "#0d47a1");
-  innerArc.setAttribute("stroke-width", "1.5");
-  innerArc.setAttribute("fill", "none");
-  patternGroup.appendChild(innerArc);
+  // Calculate key points
+  const outerStartX = 0;
+  const outerStartY = -scaledOuterR;
+  const outerEndX = scaledOuterR * Math.sin(angle);
+  const outerEndY = -scaledOuterR * Math.cos(angle);
+  const innerStartX = 0;
+  const innerStartY = -scaledInnerR;
+  const innerEndX = scaledInnerR * Math.sin(angle);
+  const innerEndY = -scaledInnerR * Math.cos(angle);
 
-  // Draw outer arc
-  const outerArcPath = createArcPath(0, scaledOuterR, angle, false);
-  const outerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  outerArc.setAttribute("d", outerArcPath);
-  outerArc.setAttribute("stroke", "#0d47a1");
-  outerArc.setAttribute("stroke-width", "2");
-  outerArc.setAttribute("fill", "none");
-  patternGroup.appendChild(outerArc);
-
-  // Draw radial lines
-  const startX1 = 0;
-  const startY1 = -scaledInnerR;
-  const endX1 = 0;
-  const endY1 = -scaledOuterR;
-
-  const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line1.setAttribute("x1", String(startX1));
-  line1.setAttribute("y1", String(startY1));
-  line1.setAttribute("x2", String(endX1));
-  line1.setAttribute("y2", String(endY1));
-  line1.setAttribute("stroke", "#0d47a1");
-  line1.setAttribute("stroke-width", "1.5");
-  patternGroup.appendChild(line1);
-
-  const endX2 = scaledOuterR * Math.sin(angle);
-  const endY2 = -scaledOuterR * Math.cos(angle);
-  const startX2 = scaledInnerR * Math.sin(angle);
-  const startY2 = -scaledInnerR * Math.cos(angle);
-
-  const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line2.setAttribute("x1", String(startX2));
-  line2.setAttribute("y1", String(startY2));
-  line2.setAttribute("x2", String(endX2));
-  line2.setAttribute("y2", String(endY2));
-  line2.setAttribute("stroke", "#0d47a1");
-  line2.setAttribute("stroke-width", "1.5");
-  patternGroup.appendChild(line2);
-
-  // Fill the sector with light color
-  const sectorPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  // Determine if we need the large arc flag
   const largeArc = angle > Math.PI ? 1 : 0;
+
+  // Build the sector ring path
+  const sectorPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   const pathData = [
-    `M 0 -${scaledInnerR}`,
-    `A ${scaledInnerR} ${scaledInnerR} 0 ${largeArc} 1 ${scaledInnerR * Math.sin(angle)} -${scaledInnerR * Math.cos(angle)}`,
-    `L ${scaledOuterR * Math.sin(angle)} -${scaledOuterR * Math.cos(angle)}`,
-    `A ${scaledOuterR} ${scaledOuterR} 0 ${largeArc} 0 0 -${scaledOuterR}`,
-    `Z`,
+    `M ${outerStartX} ${outerStartY}`, // Start at outer arc beginning
+    `A ${scaledOuterR} ${scaledOuterR} 0 ${largeArc} 1 ${outerEndX} ${outerEndY}`, // Draw outer arc
+    `L ${innerEndX} ${innerEndY}`, // Line to inner arc end
+    `A ${scaledInnerR} ${scaledInnerR} 0 ${largeArc} 0 ${innerStartX} ${innerStartY}`, // Draw inner arc (reverse direction)
+    `Z`, // Close path
   ].join(" ");
 
   sectorPath.setAttribute("d", pathData);
   sectorPath.setAttribute("fill", "#e3f2fd");
-  sectorPath.setAttribute("opacity", "0.5");
+  sectorPath.setAttribute("stroke", "#0d47a1");
+  sectorPath.setAttribute("stroke-width", "2");
+  sectorPath.setAttribute("opacity", "0.8");
   patternGroup.appendChild(sectorPath);
+
+  // Draw left radial line
+  const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line1.setAttribute("x1", String(outerStartX));
+  line1.setAttribute("y1", String(outerStartY));
+  line1.setAttribute("x2", String(innerStartX));
+  line1.setAttribute("y2", String(innerStartY));
+  line1.setAttribute("stroke", "#0d47a1");
+  line1.setAttribute("stroke-width", "1.5");
+  patternGroup.appendChild(line1);
+
+  // Draw right radial line
+  const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line2.setAttribute("x1", String(outerEndX));
+  line2.setAttribute("y1", String(outerEndY));
+  line2.setAttribute("x2", String(innerEndX));
+  line2.setAttribute("y2", String(innerEndY));
+  line2.setAttribute("stroke", "#0d47a1");
+  line2.setAttribute("stroke-width", "1.5");
+  patternGroup.appendChild(line2);
 
   svg.appendChild(patternGroup);
 
-  // Add annotations
+  // Add dimension annotations
   const textGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
   textGroup.setAttribute("font-size", "12");
-  textGroup.setAttribute("fill", "#616161");
+  textGroup.setAttribute("fill", "#ff6b35");
   textGroup.setAttribute("font-family", "Inter, sans-serif");
+  textGroup.setAttribute("font-weight", "500");
 
+  // Angle annotation (at center)
   const angleText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  angleText.setAttribute("x", String(centerX + 20));
-  angleText.setAttribute("y", String(centerY - 20));
+  angleText.setAttribute("x", String(centerX + 10));
+  angleText.setAttribute("y", String(centerY + 50));
+  angleText.setAttribute("font-size", "13");
   angleText.textContent = `θ: ${result.sectorAngle.toFixed(1)}°`;
   textGroup.appendChild(angleText);
+
+  // Inner radius annotation
+  const innerRadiusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  innerRadiusText.setAttribute("x", String(centerX - 70));
+  innerRadiusText.setAttribute("y", String(centerY + 30));
+  innerRadiusText.setAttribute("font-size", "12");
+  innerRadiusText.textContent = `R内: ${result.innerRadius.toFixed(0)}mm`;
+  textGroup.appendChild(innerRadiusText);
+
+  // Outer radius annotation
+  const outerRadiusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  outerRadiusText.setAttribute("x", String(centerX - 70));
+  outerRadiusText.setAttribute("y", String(centerY + 110));
+  outerRadiusText.setAttribute("font-size", "12");
+  outerRadiusText.textContent = `R外: ${result.outerRadius.toFixed(0)}mm`;
+  textGroup.appendChild(outerRadiusText);
 
   svg.appendChild(textGroup);
 }
@@ -308,26 +314,6 @@ function drawGrid(svg: SVGSVGElement, width: number, height: number) {
   }
 
   svg.appendChild(gridGroup);
-}
-
-/**
- * Create SVG arc path
- */
-function createArcPath(
-  startAngle: number,
-  radius: number,
-  endAngle: number,
-  clockwise: boolean
-): string {
-  const startX = radius * Math.sin(startAngle);
-  const startY = -radius * Math.cos(startAngle);
-  const endX = radius * Math.sin(endAngle);
-  const endY = -radius * Math.cos(endAngle);
-
-  const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
-  const sweep = clockwise ? 1 : 0;
-
-  return `M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${endX} ${endY}`;
 }
 
 /**
