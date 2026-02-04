@@ -3,22 +3,12 @@ import { CalculationResult } from "./lampshadeCalculator";
 /**
  * DXF Exporter for Lampshade Unfolding Pattern
  * 
- * Generates a DXF file that can be imported into CAD software or laser cutters.
- * The DXF format is a text-based format used by AutoCAD and many other CAD programs.
+ * Generates a standard DXF file that can be imported into AutoCAD and other CAD software.
+ * Uses proper DXF R12 format (AC1009) for maximum compatibility.
  */
 
-interface DXFEntity {
-  type: string;
-  layer: string;
-  [key: string]: any;
-}
-
-interface DXFHeader {
-  [key: string]: any;
-}
-
 /**
- * Generate DXF content as a string
+ * Generate DXF content using proper DXF R12 format
  */
 export function generateDXFContent(result: CalculationResult): string {
   if (!result.isValid) {
@@ -29,342 +19,189 @@ export function generateDXFContent(result: CalculationResult): string {
   const outerR = result.outerRadius;
   const angle = result.sectorAngleRad;
 
-  // DXF file structure
-  const dxf: string[] = [];
+  // DXF file content
+  const lines: string[] = [];
 
   // SECTION: HEADER
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("HEADER");
-  dxf.push("9");
-  dxf.push("$ACADVER");
-  dxf.push("1");
-  dxf.push("AC1021"); // AutoCAD 2000
-  dxf.push("9");
-  dxf.push("$EXTMIN");
-  dxf.push("10");
-  dxf.push("-" + (outerR + 10).toString());
-  dxf.push("20");
-  dxf.push("-" + (outerR + 10).toString());
-  dxf.push("9");
-  dxf.push("$EXTMAX");
-  dxf.push("10");
-  dxf.push((outerR + 10).toString());
-  dxf.push("20");
-  dxf.push((outerR + 10).toString());
-  dxf.push("0");
-  dxf.push("ENDSEC");
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("HEADER");
+  
+  // Version
+  lines.push("9");
+  lines.push("$ACADVER");
+  lines.push("1");
+  lines.push("AC1009"); // DXF R12 format
+  
+  // Limits
+  lines.push("9");
+  lines.push("$EXTMIN");
+  lines.push("10");
+  lines.push(String(-outerR - 50));
+  lines.push("20");
+  lines.push(String(-outerR - 50));
+  lines.push("9");
+  lines.push("$EXTMAX");
+  lines.push("10");
+  lines.push(String(outerR + 50));
+  lines.push("20");
+  lines.push(String(outerR + 50));
+  
+  lines.push("0");
+  lines.push("ENDSEC");
 
   // SECTION: TABLES
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("TABLES");
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("TABLES");
 
-  // Layer table
-  dxf.push("0");
-  dxf.push("TABLE");
-  dxf.push("2");
-  dxf.push("LAYER");
-  dxf.push("70");
-  dxf.push("2");
+  // LAYER table
+  lines.push("0");
+  lines.push("TABLE");
+  lines.push("2");
+  lines.push("LAYER");
+  lines.push("70");
+  lines.push("2");
 
-  // Layer 0 (default)
-  dxf.push("0");
-  dxf.push("LAYER");
-  dxf.push("2");
-  dxf.push("0");
-  dxf.push("70");
-  dxf.push("0");
-  dxf.push("62");
-  dxf.push("7");
-  dxf.push("6");
-  dxf.push("CONTINUOUS");
+  // Layer 0
+  lines.push("0");
+  lines.push("LAYER");
+  lines.push("2");
+  lines.push("0");
+  lines.push("70");
+  lines.push("0");
+  lines.push("62");
+  lines.push("7");
+  lines.push("6");
+  lines.push("CONTINUOUS");
 
   // Outline layer
-  dxf.push("0");
-  dxf.push("LAYER");
-  dxf.push("2");
-  dxf.push("OUTLINE");
-  dxf.push("70");
-  dxf.push("0");
-  dxf.push("62");
-  dxf.push("1"); // Red
-  dxf.push("6");
-  dxf.push("CONTINUOUS");
+  lines.push("0");
+  lines.push("LAYER");
+  lines.push("2");
+  lines.push("OUTLINE");
+  lines.push("70");
+  lines.push("0");
+  lines.push("62");
+  lines.push("1"); // Red
+  lines.push("6");
+  lines.push("CONTINUOUS");
 
-  // Dimension layer
-  dxf.push("0");
-  dxf.push("LAYER");
-  dxf.push("2");
-  dxf.push("DIMENSIONS");
-  dxf.push("70");
-  dxf.push("0");
-  dxf.push("62");
-  dxf.push("3"); // Green
-  dxf.push("6");
-  dxf.push("CONTINUOUS");
-
-  dxf.push("0");
-  dxf.push("ENDTAB");
-  dxf.push("0");
-  dxf.push("ENDSEC");
+  lines.push("0");
+  lines.push("ENDTAB");
+  lines.push("0");
+  lines.push("ENDSEC");
 
   // SECTION: BLOCKS
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("BLOCKS");
-  dxf.push("0");
-  dxf.push("ENDSEC");
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("BLOCKS");
+  lines.push("0");
+  lines.push("ENDSEC");
 
   // SECTION: ENTITIES
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("ENTITIES");
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("ENTITIES");
 
-  // Determine if we need the large arc flag
-  const largeArc = angle > Math.PI ? 1 : 0;
+  // Generate arc points for polylines
+  const outerArcPoints = generateArcPoints(0, 0, outerR, 270, 270 + (angle * 180) / Math.PI, 50);
+  const innerArcPoints = generateArcPoints(0, 0, innerR, 270 + (angle * 180) / Math.PI, 270, 50);
 
-  // Draw outer arc
-  dxf.push("0");
-  dxf.push("ARC");
-  dxf.push("8");
-  dxf.push("OUTLINE");
-  dxf.push("10");
-  dxf.push("0"); // Center X
-  dxf.push("20");
-  dxf.push("0"); // Center Y
-  dxf.push("40");
-  dxf.push(outerR.toFixed(2)); // Radius
-  dxf.push("50");
-  dxf.push("270"); // Start angle (pointing up)
-  dxf.push("51");
-  dxf.push((270 + (angle * 180) / Math.PI).toFixed(2)); // End angle
+  // Draw outer arc as polyline
+  lines.push(...createLWPolyline("OUTER_ARC", outerArcPoints, 1));
 
-  // Draw inner arc
-  dxf.push("0");
-  dxf.push("ARC");
-  dxf.push("8");
-  dxf.push("OUTLINE");
-  dxf.push("10");
-  dxf.push("0"); // Center X
-  dxf.push("20");
-  dxf.push("0"); // Center Y
-  dxf.push("40");
-  dxf.push(innerR.toFixed(2)); // Radius
-  dxf.push("50");
-  dxf.push((270 + (angle * 180) / Math.PI).toFixed(2)); // Start angle (reverse)
-  dxf.push("51");
-  dxf.push("270"); // End angle
-
-  // Draw left radial line
-  dxf.push("0");
-  dxf.push("LINE");
-  dxf.push("8");
-  dxf.push("OUTLINE");
-  dxf.push("10");
-  dxf.push("0"); // Start X
-  dxf.push("20");
-  dxf.push("-" + outerR.toFixed(2)); // Start Y
-  dxf.push("11");
-  dxf.push("0"); // End X
-  dxf.push("21");
-  dxf.push("-" + innerR.toFixed(2)); // End Y
-
-  // Draw right radial line
-  const rightX = (outerR * Math.sin(angle)).toFixed(2);
-  const rightY = (-outerR * Math.cos(angle)).toFixed(2);
-  const rightInnerX = (innerR * Math.sin(angle)).toFixed(2);
-  const rightInnerY = (-innerR * Math.cos(angle)).toFixed(2);
-
-  dxf.push("0");
-  dxf.push("LINE");
-  dxf.push("8");
-  dxf.push("OUTLINE");
-  dxf.push("10");
-  dxf.push(rightX); // Start X
-  dxf.push("20");
-  dxf.push(rightY); // Start Y
-  dxf.push("11");
-  dxf.push(rightInnerX); // End X
-  dxf.push("21");
-  dxf.push(rightInnerY); // End Y
-
-  // Add dimension text
-  addDimensionText(dxf, "Inner Radius", innerR.toFixed(2), -innerR - 20, 0);
-  addDimensionText(dxf, "Outer Radius", outerR.toFixed(2), -outerR - 20, -30);
-  addDimensionText(dxf, "Angle", result.sectorAngle.toFixed(1) + "°", 30, 30);
-
-  dxf.push("0");
-  dxf.push("ENDSEC");
-
-  // SECTION: EOF
-  dxf.push("0");
-  dxf.push("EOF");
-
-  return dxf.join("\n");
-}
-
-/**
- * Add dimension text to DXF
- */
-function addDimensionText(
-  dxf: string[],
-  label: string,
-  value: string,
-  x: number,
-  y: number
-): void {
-  dxf.push("0");
-  dxf.push("TEXT");
-  dxf.push("8");
-  dxf.push("DIMENSIONS");
-  dxf.push("10");
-  dxf.push(x.toFixed(2)); // X coordinate
-  dxf.push("20");
-  dxf.push(y.toFixed(2)); // Y coordinate
-  dxf.push("40");
-  dxf.push("5"); // Text height
-  dxf.push("1");
-  dxf.push(label + ": " + value); // Text content
-  dxf.push("7");
-  dxf.push("STANDARD"); // Text style
-}
-
-/**
- * Export calculation result as DXF file
- */
-export function exportAsDXF(result: CalculationResult): void {
-  try {
-    const dxfContent = generateDXFContent(result);
-    const blob = new Blob([dxfContent], { type: "application/dxf" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lampshade-${Date.now()}.dxf`;
-    link.click();
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error exporting DXF:", error);
-    throw error;
-  }
-}
-
-/**
- * Alternative: Generate DXF using polyline for smoother curves
- * This version creates a more accurate representation of the arcs
- */
-export function generateDXFContentAdvanced(result: CalculationResult): string {
-  if (!result.isValid) {
-    throw new Error("Cannot export invalid calculation result");
-  }
-
-  const innerR = result.innerRadius;
-  const outerR = result.outerRadius;
-  const angle = result.sectorAngleRad;
-
-  const dxf: string[] = [];
-
-  // Header
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("HEADER");
-  dxf.push("9");
-  dxf.push("$ACADVER");
-  dxf.push("1");
-  dxf.push("AC1021");
-  dxf.push("0");
-  dxf.push("ENDSEC");
-
-  // Tables
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("TABLES");
-  dxf.push("0");
-  dxf.push("TABLE");
-  dxf.push("2");
-  dxf.push("LAYER");
-  dxf.push("70");
-  dxf.push("1");
-  dxf.push("0");
-  dxf.push("LAYER");
-  dxf.push("2");
-  dxf.push("0");
-  dxf.push("70");
-  dxf.push("0");
-  dxf.push("62");
-  dxf.push("7");
-  dxf.push("6");
-  dxf.push("CONTINUOUS");
-  dxf.push("0");
-  dxf.push("ENDTAB");
-  dxf.push("0");
-  dxf.push("ENDSEC");
-
-  // Blocks
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("BLOCKS");
-  dxf.push("0");
-  dxf.push("ENDSEC");
-
-  // Entities - Using polylines to approximate arcs
-  dxf.push("0");
-  dxf.push("SECTION");
-  dxf.push("2");
-  dxf.push("ENTITIES");
-
-  // Generate polyline points for outer arc
-  const outerPoints = generateArcPoints(0, 0, outerR, 270, 270 + (angle * 180) / Math.PI, 36);
-  dxf.push(...createPolyline("OUTER_ARC", outerPoints));
-
-  // Generate polyline points for inner arc (reverse direction)
-  const innerPoints = generateArcPoints(0, 0, innerR, 270 + (angle * 180) / Math.PI, 270, 36);
-  dxf.push(...createPolyline("INNER_ARC", innerPoints));
+  // Draw inner arc as polyline
+  lines.push(...createLWPolyline("INNER_ARC", innerArcPoints, 1));
 
   // Left radial line
-  dxf.push("0");
-  dxf.push("LINE");
-  dxf.push("10");
-  dxf.push("0");
-  dxf.push("20");
-  dxf.push("-" + outerR.toFixed(2));
-  dxf.push("11");
-  dxf.push("0");
-  dxf.push("21");
-  dxf.push("-" + innerR.toFixed(2));
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push("0");
+  lines.push("20");
+  lines.push(String(-outerR));
+  lines.push("11");
+  lines.push("0");
+  lines.push("21");
+  lines.push(String(-innerR));
 
   // Right radial line
-  const rightX = (outerR * Math.sin(angle)).toFixed(2);
-  const rightY = (-outerR * Math.cos(angle)).toFixed(2);
-  const rightInnerX = (innerR * Math.sin(angle)).toFixed(2);
-  const rightInnerY = (-innerR * Math.cos(angle)).toFixed(2);
+  const rightX = outerR * Math.sin(angle);
+  const rightY = -outerR * Math.cos(angle);
+  const rightInnerX = innerR * Math.sin(angle);
+  const rightInnerY = -innerR * Math.cos(angle);
 
-  dxf.push("0");
-  dxf.push("LINE");
-  dxf.push("10");
-  dxf.push(rightX);
-  dxf.push("20");
-  dxf.push(rightY);
-  dxf.push("11");
-  dxf.push(rightInnerX);
-  dxf.push("21");
-  dxf.push(rightInnerY);
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(rightX));
+  lines.push("20");
+  lines.push(String(rightY));
+  lines.push("11");
+  lines.push(String(rightInnerX));
+  lines.push("21");
+  lines.push(String(rightInnerY));
 
-  dxf.push("0");
-  dxf.push("ENDSEC");
+  // Add dimension lines and text
+  // Inner radius dimension
+  lines.push("0");
+  lines.push("TEXT");
+  lines.push("8");
+  lines.push("0");
+  lines.push("10");
+  lines.push(String(-outerR - 30));
+  lines.push("20");
+  lines.push(String(-innerR - 20));
+  lines.push("40");
+  lines.push("10");
+  lines.push("1");
+  lines.push(`R=${innerR.toFixed(1)}`);
+
+  // Outer radius dimension
+  lines.push("0");
+  lines.push("TEXT");
+  lines.push("8");
+  lines.push("0");
+  lines.push("10");
+  lines.push(String(-outerR - 30));
+  lines.push("20");
+  lines.push(String(-outerR - 20));
+  lines.push("40");
+  lines.push("10");
+  lines.push("1");
+  lines.push(`r=${outerR.toFixed(1)}`);
+
+  // Angle dimension
+  lines.push("0");
+  lines.push("TEXT");
+  lines.push("8");
+  lines.push("0");
+  lines.push("10");
+  lines.push("20");
+  lines.push("20");
+  lines.push("30");
+  lines.push("40");
+  lines.push("10");
+  lines.push("1");
+  lines.push(`θ=${result.sectorAngle.toFixed(1)}°`);
+
+  lines.push("0");
+  lines.push("ENDSEC");
 
   // EOF
-  dxf.push("0");
-  dxf.push("EOF");
+  lines.push("0");
+  lines.push("EOF");
 
-  return dxf.join("\n");
+  return lines.join("\n");
 }
 
 /**
@@ -392,24 +229,56 @@ function generateArcPoints(
 }
 
 /**
- * Create a polyline entity in DXF format
+ * Create a lightweight polyline (LWPOLYLINE) entity in DXF format
  */
-function createPolyline(name: string, points: Array<[number, number]>): string[] {
+function createLWPolyline(
+  layer: string,
+  points: Array<[number, number]>,
+  width: number = 0
+): string[] {
   const dxf: string[] = [];
 
   dxf.push("0");
   dxf.push("LWPOLYLINE");
   dxf.push("8");
-  dxf.push(name);
+  dxf.push(layer);
+  dxf.push("70");
+  dxf.push("0"); // Not closed
   dxf.push("90");
-  dxf.push(points.length.toString());
+  dxf.push(String(points.length));
+
+  if (width > 0) {
+    dxf.push("43");
+    dxf.push(String(width));
+  }
 
   for (const [x, y] of points) {
     dxf.push("10");
-    dxf.push(x.toFixed(2));
+    dxf.push(String(x));
     dxf.push("20");
-    dxf.push(y.toFixed(2));
+    dxf.push(String(y));
   }
 
   return dxf;
+}
+
+/**
+ * Export calculation result as DXF file
+ */
+export function exportAsDXF(result: CalculationResult): void {
+  try {
+    const dxfContent = generateDXFContent(result);
+    const blob = new Blob([dxfContent], { type: "application/dxf; charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `lampshade-unfolding-${Date.now()}.dxf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error exporting DXF:", error);
+    throw error;
+  }
 }
