@@ -9,7 +9,8 @@ import {
   calculateLampshade,
   CalculationResult,
 } from "@/lib/lampshadeCalculator";
-import { Download, RotateCcw } from "lucide-react";
+import { Download, RotateCcw, FileJson } from "lucide-react";
+import { exportAsDXF } from "@/lib/dxfExporter";
 
 /**
  * Home Page - Lampshade Calculator
@@ -65,6 +66,15 @@ export default function Home() {
     link.download = `lampshade-${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Handle export as DXF
+  const handleExportDXF = () => {
+    try {
+      exportAsDXF(result);
+    } catch (error) {
+      console.error("Failed to export DXF:", error);
+    }
   };
 
   // Handle export as CSV
@@ -167,24 +177,31 @@ export default function Home() {
               <h3 className="text-lg font-semibold text-foreground mb-4">
                 导出结果
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <Button
                   onClick={handleExportJSON}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  导出 JSON
+                  JSON
                 </Button>
                 <Button
                   onClick={handleExportCSV}
                   className="bg-accent hover:bg-accent/90 text-accent-foreground flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  导出 CSV
+                  CSV
+                </Button>
+                <Button
+                  onClick={handleExportDXF}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+                >
+                  <FileJson className="w-4 h-4" />
+                  DXF
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-4">
-                导出的文件包含所有计算参数和结果，可用于后续处理或存档。
+                JSON/CSV 包含计算参数和结果，DXF 可导入 CAD 或激光切割机
               </p>
             </div>
           </div>
