@@ -139,12 +139,22 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("51");
   lines.push(String(270 - angleDegrees));
 
-  // Draw left radial line
-  const leftOuterX = outerR * Math.sin(-angle);
-  const leftOuterY = -outerR * Math.cos(-angle);
-  const leftInnerX = innerR * Math.sin(-angle);
-  const leftInnerY = -innerR * Math.cos(-angle);
+  // Calculate the two radial line endpoints
+  // Left radial line: at angle (270 - angleDegrees) degrees
+  const leftAngleDeg = 270 - angleDegrees;
+  const leftAngleRad = (leftAngleDeg * Math.PI) / 180;
+  const leftOuterX = outerR * Math.cos(leftAngleRad);
+  const leftOuterY = outerR * Math.sin(leftAngleRad);
+  const leftInnerX = innerR * Math.cos(leftAngleRad);
+  const leftInnerY = innerR * Math.sin(leftAngleRad);
 
+  // Right radial line: at angle 270 degrees (pointing down)
+  const rightOuterX = 0;
+  const rightOuterY = -outerR;
+  const rightInnerX = 0;
+  const rightInnerY = -innerR;
+
+  // Draw left radial line
   lines.push("0");
   lines.push("LINE");
   lines.push("8");
@@ -164,13 +174,13 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("8");
   lines.push("OUTLINE");
   lines.push("10");
-  lines.push("0");
+  lines.push(String(rightOuterX));
   lines.push("20");
-  lines.push(String(-outerR));
+  lines.push(String(rightOuterY));
   lines.push("11");
-  lines.push("0");
+  lines.push(String(rightInnerX));
   lines.push("21");
-  lines.push(String(-innerR));
+  lines.push(String(rightInnerY));
 
   // Add dimension text annotations
   lines.push("0");
