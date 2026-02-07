@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { CalculationResult, generateUnfoldedPatternPath } from "@/lib/lampshadeCalculator";
 
@@ -67,13 +67,19 @@ function render3DView(svg: SVGSVGElement, result: CalculationResult) {
   const centerX = width / 2;
   const centerY = height / 2;
 
+  // Calculate vertical height from slant height and radius difference
+  const radiusDiff = result.bottomRadius - result.topRadius;
+  const verticalHeight = Math.sqrt(
+    Math.pow(result.slantHeight, 2) - Math.pow(radiusDiff, 2)
+  );
+
   // Scale factor to fit the lampshade in the view
-  const maxDim = Math.max(result.bottomDiameter, result.height);
+  const maxDim = Math.max(result.bottomDiameter, verticalHeight);
   const scale = Math.min(width, height) / (maxDim + 100);
 
   const topR = result.topRadius * scale;
   const bottomR = result.bottomRadius * scale;
-  const h = result.height * scale;
+  const h = verticalHeight * scale;
 
   // Draw background grid
   drawGrid(svg, width, height);
@@ -141,16 +147,38 @@ function render3DView(svg: SVGSVGElement, result: CalculationResult) {
   svg.appendChild(outlineGroup);
 
   // Add dimension annotations
-  // Draw slant height annotation (along the left edge)
-  addDimensionLine(
-    svg,
-    topLeftX - 30,
-    topY,
-    topLeftX - 30,
-    bottomY,
-    `H: ${result.slantHeight.toFixed(0)}mm`,
-    "left"
+  // Draw slant height annotation along the left slant edge
+  const slantLength = Math.sqrt(
+    Math.pow(bottomLeftX - topLeftX, 2) + Math.pow(bottomY - topY, 2)
   );
+  const midX = (topLeftX + bottomLeftX) / 2;
+  const midY = (topY + bottomY) / 2;
+  
+  // Draw measurement line along the slant edge
+  const measureLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  measureLine.setAttribute("x1", String(topLeftX - 40));
+  measureLine.setAttribute("y1", String(topY));
+  measureLine.setAttribute("x2", String(bottomLeftX - 40));
+  measureLine.setAttribute("y2", String(bottomY));
+  measureLine.setAttribute("stroke", "#ff6b35");
+  measureLine.setAttribute("stroke-width", "1");
+  measureLine.setAttribute("stroke-dasharray", "4,4");
+  svg.appendChild(measureLine);
+
+  // Add text label for slant height
+  const angle = Math.atan2(bottomY - topY, bottomLeftX - topLeftX);
+  const textX = midX - 50;
+  const textY = midY;
+  
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.setAttribute("x", String(textX));
+  text.setAttribute("y", String(textY));
+  text.setAttribute("font-size", "12");
+  text.setAttribute("fill", "#ff6b35");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("dominant-baseline", "middle");
+  text.textContent = `H: ${result.slantHeight.toFixed(0)}mm`;
+  svg.appendChild(text);
 
   addDimensionLine(
     svg,
@@ -182,119 +210,107 @@ function renderUnfoldedView(svg: SVGSVGElement, result: CalculationResult) {
   const centerX = width / 2;
   const centerY = height / 2;
 
+  // Scale to fit the unfolded pattern
+  const maxRadius = result.outerRadius;
+  const scale = Math.min(width, height) / (maxRadius * 2.5);
+
+  const innerR = result.innerRadius * scale;
+  const outerR = result.outerRadius * scale;
+  const angle = (result.sectorAngle * Math.PI) / 180;
+
   // Draw background grid
   drawGrid(svg, width, height);
 
-  const innerR = result.innerRadius;
-  const outerR = result.outerRadius;
-  const angle = result.sectorAngleRad;
-
-  // Scale to fit in view
-  const scale = Math.min(width, height) / (outerR * 2.5);
-  const scaledInnerR = innerR * scale;
-  const scaledOuterR = outerR * scale;
-
-  // Create group for the pattern
-  const patternGroup = document.createElementNS(
+  // Draw the unfolded sector ring
+  const sectorGroup = document.createElementNS(
     "http://www.w3.org/2000/svg",
     "g"
   );
-  patternGroup.setAttribute("transform", `translate(${centerX}, ${centerY + 30})`);
+  sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
-  // Calculate key points
-  const outerStartX = 0;
-  const outerStartY = -scaledOuterR;
-  const outerEndX = scaledOuterR * Math.sin(angle);
-  const outerEndY = -scaledOuterR * Math.cos(angle);
-  const innerStartX = 0;
-  const innerStartY = -scaledInnerR;
-  const innerEndX = scaledInnerR * Math.sin(angle);
-  const innerEndY = -scaledInnerR * Math.cos(angle);
+  // Draw outer arc
+  const outerArcPath = describeArc(0, 0, outerR, 0, angle);
+  const outerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  outerArc.setAttribute("d", outerArcPath);
+  outerArc.setAttribute("stroke", "#0d47a1");
+  outerArc.setAttribute("stroke-width", "2");
+  outerArc.setAttribute("fill", "none");
+  sectorGroup.appendChild(outerArc);
 
-  // Determine if we need the large arc flag
-  const largeArc = angle > Math.PI ? 1 : 0;
-
-  // Build the sector ring path
-  const sectorPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  const pathData = [
-    `M ${outerStartX} ${outerStartY}`, // Start at outer arc beginning
-    `A ${scaledOuterR} ${scaledOuterR} 0 ${largeArc} 1 ${outerEndX} ${outerEndY}`, // Draw outer arc
-    `L ${innerEndX} ${innerEndY}`, // Line to inner arc end
-    `A ${scaledInnerR} ${scaledInnerR} 0 ${largeArc} 0 ${innerStartX} ${innerStartY}`, // Draw inner arc (reverse direction)
-    `Z`, // Close path
-  ].join(" ");
-
-  sectorPath.setAttribute("d", pathData);
-  sectorPath.setAttribute("fill", "#e3f2fd");
-  sectorPath.setAttribute("stroke", "#0d47a1");
-  sectorPath.setAttribute("stroke-width", "2");
-  sectorPath.setAttribute("opacity", "0.8");
-  patternGroup.appendChild(sectorPath);
+  // Draw inner arc
+  const innerArcPath = describeArc(0, 0, innerR, 0, angle);
+  const innerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  innerArc.setAttribute("d", innerArcPath);
+  innerArc.setAttribute("stroke", "#0d47a1");
+  innerArc.setAttribute("stroke-width", "2");
+  innerArc.setAttribute("fill", "none");
+  sectorGroup.appendChild(innerArc);
 
   // Draw left radial line
-  const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line1.setAttribute("x1", String(outerStartX));
-  line1.setAttribute("y1", String(outerStartY));
-  line1.setAttribute("x2", String(innerStartX));
-  line1.setAttribute("y2", String(innerStartY));
-  line1.setAttribute("stroke", "#0d47a1");
-  line1.setAttribute("stroke-width", "1.5");
-  patternGroup.appendChild(line1);
+  const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  leftLine.setAttribute("x1", "0");
+  leftLine.setAttribute("y1", "0");
+  leftLine.setAttribute("x2", String(outerR));
+  leftLine.setAttribute("y2", "0");
+  leftLine.setAttribute("stroke", "#0d47a1");
+  leftLine.setAttribute("stroke-width", "2");
+  sectorGroup.appendChild(leftLine);
 
   // Draw right radial line
-  const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line2.setAttribute("x1", String(outerEndX));
-  line2.setAttribute("y1", String(outerEndY));
-  line2.setAttribute("x2", String(innerEndX));
-  line2.setAttribute("y2", String(innerEndY));
-  line2.setAttribute("stroke", "#0d47a1");
-  line2.setAttribute("stroke-width", "1.5");
-  patternGroup.appendChild(line2);
+  const rightX = outerR * Math.cos(angle);
+  const rightY = outerR * Math.sin(angle);
+  const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  rightLine.setAttribute("x1", "0");
+  rightLine.setAttribute("y1", "0");
+  rightLine.setAttribute("x2", String(rightX));
+  rightLine.setAttribute("y2", String(rightY));
+  rightLine.setAttribute("stroke", "#0d47a1");
+  rightLine.setAttribute("stroke-width", "2");
+  sectorGroup.appendChild(rightLine);
 
-  svg.appendChild(patternGroup);
+  // Fill the sector
+  const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightX} ${rightY} L ${rightX * innerR / outerR} ${rightY * innerR / outerR} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
+  fillPath.setAttribute("d", pathData);
+  fillPath.setAttribute("fill", "#e3f2fd");
+  fillPath.setAttribute("opacity", "0.5");
+  sectorGroup.appendChild(fillPath);
 
-  // Add dimension annotations
-  const textGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  textGroup.setAttribute("font-size", "12");
-  textGroup.setAttribute("fill", "#ff6b35");
-  textGroup.setAttribute("font-family", "Inter, sans-serif");
-  textGroup.setAttribute("font-weight", "500");
+  svg.appendChild(sectorGroup);
 
-  // Angle annotation (at center)
-  const angleText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  angleText.setAttribute("x", String(centerX + 10));
-  angleText.setAttribute("y", String(centerY + 50));
-  angleText.setAttribute("font-size", "13");
-  angleText.textContent = `θ: ${result.sectorAngle.toFixed(1)}°`;
-  textGroup.appendChild(angleText);
+  // Add dimension text
+  const textOffset = 20;
+  const text1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text1.setAttribute("x", String(centerX - 80));
+  text1.setAttribute("y", String(centerY - innerR - textOffset));
+  text1.setAttribute("font-size", "12");
+  text1.setAttribute("fill", "#0d47a1");
+  text1.textContent = `R=${result.innerRadius.toFixed(1)}`;
+  svg.appendChild(text1);
 
-  // Inner radius annotation
-  const innerRadiusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  innerRadiusText.setAttribute("x", String(centerX - 70));
-  innerRadiusText.setAttribute("y", String(centerY + 30));
-  innerRadiusText.setAttribute("font-size", "12");
-  innerRadiusText.textContent = `R内: ${result.innerRadius.toFixed(0)}mm`;
-  textGroup.appendChild(innerRadiusText);
+  const text2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text2.setAttribute("x", String(centerX - 80));
+  text2.setAttribute("y", String(centerY - outerR - textOffset));
+  text2.setAttribute("font-size", "12");
+  text2.setAttribute("fill", "#0d47a1");
+  text2.textContent = `r=${result.outerRadius.toFixed(1)}`;
+  svg.appendChild(text2);
 
-  // Outer radius annotation
-  const outerRadiusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  outerRadiusText.setAttribute("x", String(centerX - 70));
-  outerRadiusText.setAttribute("y", String(centerY + 110));
-  outerRadiusText.setAttribute("font-size", "12");
-  outerRadiusText.textContent = `R外: ${result.outerRadius.toFixed(0)}mm`;
-  textGroup.appendChild(outerRadiusText);
-
-  svg.appendChild(textGroup);
+  const text3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text3.setAttribute("x", String(centerX + 20));
+  text3.setAttribute("y", String(centerY + 30));
+  text3.setAttribute("font-size", "12");
+  text3.setAttribute("fill", "#0d47a1");
+  text3.textContent = `θ=${result.sectorAngle.toFixed(1)}°`;
+  svg.appendChild(text3);
 }
 
 /**
- * Draw background grid
+ * Draw grid background
  */
 function drawGrid(svg: SVGSVGElement, width: number, height: number) {
-  const gridSize = 40;
+  const gridSize = 20;
   const gridGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  gridGroup.setAttribute("stroke", "#e0e0e0");
-  gridGroup.setAttribute("stroke-width", "0.5");
 
   for (let x = 0; x < width; x += gridSize) {
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -302,6 +318,8 @@ function drawGrid(svg: SVGSVGElement, width: number, height: number) {
     line.setAttribute("y1", "0");
     line.setAttribute("x2", String(x));
     line.setAttribute("y2", String(height));
+    line.setAttribute("stroke", "#e0e0e0");
+    line.setAttribute("stroke-width", "0.5");
     gridGroup.appendChild(line);
   }
 
@@ -311,6 +329,8 @@ function drawGrid(svg: SVGSVGElement, width: number, height: number) {
     line.setAttribute("y1", String(y));
     line.setAttribute("x2", String(width));
     line.setAttribute("y2", String(y));
+    line.setAttribute("stroke", "#e0e0e0");
+    line.setAttribute("stroke-width", "0.5");
     gridGroup.appendChild(line);
   }
 
@@ -329,9 +349,6 @@ function addDimensionLine(
   label: string,
   position: "top" | "bottom" | "left" | "right"
 ) {
-  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-  // Draw line
   const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   line.setAttribute("x1", String(x1));
   line.setAttribute("y1", String(y1));
@@ -339,40 +356,69 @@ function addDimensionLine(
   line.setAttribute("y2", String(y2));
   line.setAttribute("stroke", "#ff6b35");
   line.setAttribute("stroke-width", "1");
-  group.appendChild(line);
+  svg.appendChild(line);
 
-  // Draw text
   const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("font-size", "11");
-  text.setAttribute("fill", "#ff6b35");
-  text.setAttribute("font-family", "Inter, sans-serif");
-  text.setAttribute("font-weight", "500");
-
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
 
-  if (position === "top") {
-    text.setAttribute("x", String(midX));
-    text.setAttribute("y", String(midY - 8));
-    text.setAttribute("text-anchor", "middle");
-  } else if (position === "bottom") {
-    text.setAttribute("x", String(midX));
-    text.setAttribute("y", String(midY + 15));
-    text.setAttribute("text-anchor", "middle");
-  } else if (position === "left") {
-    text.setAttribute("x", String(midX - 8));
-    text.setAttribute("y", String(midY));
-    text.setAttribute("text-anchor", "end");
-    text.setAttribute("dominant-baseline", "middle");
+  text.setAttribute("x", String(midX));
+  text.setAttribute("y", String(midY));
+  text.setAttribute("font-size", "12");
+  text.setAttribute("fill", "#ff6b35");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("dominant-baseline", "middle");
+
+  if (position === "top" || position === "bottom") {
+    text.setAttribute("dy", position === "top" ? "-8" : "16");
   } else {
-    text.setAttribute("x", String(midX + 8));
-    text.setAttribute("y", String(midY));
-    text.setAttribute("text-anchor", "start");
-    text.setAttribute("dominant-baseline", "middle");
+    text.setAttribute("dx", position === "left" ? "-8" : "8");
   }
 
   text.textContent = label;
-  group.appendChild(text);
+  svg.appendChild(text);
+}
 
-  svg.appendChild(group);
+/**
+ * Describe SVG arc path
+ */
+function describeArc(
+  x: number,
+  y: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+): string {
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+  const largeArc = endAngle - startAngle <= Math.PI ? "0" : "1";
+
+  return [
+    "M",
+    start.x,
+    start.y,
+    "A",
+    radius,
+    radius,
+    0,
+    largeArc,
+    0,
+    end.x,
+    end.y,
+  ].join(" ");
+}
+
+/**
+ * Convert polar to cartesian coordinates
+ */
+function polarToCartesian(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInRadians: number
+) {
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
 }
