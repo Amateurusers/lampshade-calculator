@@ -141,13 +141,14 @@ function render3DView(svg: SVGSVGElement, result: CalculationResult) {
   svg.appendChild(outlineGroup);
 
   // Add dimension annotations
+  // Draw slant height annotation (along the left edge)
   addDimensionLine(
     svg,
     topLeftX - 30,
     topY,
     topLeftX - 30,
     bottomY,
-    `H: ${result.height.toFixed(0)}mm`,
+    `H: ${result.slantHeight.toFixed(0)}mm`,
     "left"
   );
 
