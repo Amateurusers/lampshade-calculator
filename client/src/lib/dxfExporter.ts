@@ -123,7 +123,7 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("270");
 
   // Draw inner arc using ARC entity
-  // Reverse direction: start at 270, end at 270 - angleDegrees
+  // Same angle range as outer arc but with smaller radius
   lines.push("0");
   lines.push("ARC");
   lines.push("8");
@@ -135,9 +135,9 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("40");
   lines.push(String(innerR));
   lines.push("50");
-  lines.push("270");
-  lines.push("51");
   lines.push(String(270 - angleDegrees));
+  lines.push("51");
+  lines.push("270");
 
   // Calculate the two radial line endpoints
   // Left radial line: at angle (270 - angleDegrees) degrees
