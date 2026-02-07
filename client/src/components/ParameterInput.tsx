@@ -80,10 +80,10 @@ export function ParameterInput({ params, onChange }: ParameterInputProps) {
           </p>
         </div>
 
-        {/* Height */}
+        {/* Slant Height */}
         <div className="space-y-2">
           <Label htmlFor="height" className="text-sm font-medium text-foreground">
-            灯罩高度 (mm)
+            斜高 (mm)
           </Label>
           <Input
             id="height"
@@ -96,7 +96,7 @@ export function ParameterInput({ params, onChange }: ParameterInputProps) {
             className={inputClasses}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            灯罩的竖直高度
+            从上口到下口的斜边长度
           </p>
         </div>
 

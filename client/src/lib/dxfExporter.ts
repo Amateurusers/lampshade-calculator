@@ -105,77 +105,74 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("ENTITIES");
 
   // Draw outer arc using ARC entity
-  // Arc center at origin (0, 0)
-  // Start angle: 270 degrees (pointing up)
-  // End angle: 270 + angleDegrees
+  // Start angle: 270 - angleDegrees (left side)
+  // End angle: 270 (right side, pointing down)
   lines.push("0");
   lines.push("ARC");
   lines.push("8");
   lines.push("OUTLINE");
   lines.push("10");
-  lines.push("0"); // Center X
+  lines.push("0");
   lines.push("20");
-  lines.push("0"); // Center Y
+  lines.push("0");
   lines.push("40");
-  lines.push(String(outerR)); // Radius
+  lines.push(String(outerR));
   lines.push("50");
-  lines.push("270"); // Start angle
+  lines.push(String(270 - angleDegrees));
   lines.push("51");
-  lines.push(String(270 + angleDegrees)); // End angle
+  lines.push("270");
 
   // Draw inner arc using ARC entity
-  // Same center and angles as outer arc
+  // Reverse direction: start at 270, end at 270 - angleDegrees
   lines.push("0");
   lines.push("ARC");
   lines.push("8");
   lines.push("OUTLINE");
   lines.push("10");
-  lines.push("0"); // Center X
+  lines.push("0");
   lines.push("20");
-  lines.push("0"); // Center Y
+  lines.push("0");
   lines.push("40");
-  lines.push(String(innerR)); // Radius
+  lines.push(String(innerR));
   lines.push("50");
-  lines.push(String(270 + angleDegrees)); // Start angle (reversed)
+  lines.push("270");
   lines.push("51");
-  lines.push("270"); // End angle
+  lines.push(String(270 - angleDegrees));
 
-  // Draw left radial line (from outer to inner at angle 270)
-  lines.push("0");
-  lines.push("LINE");
-  lines.push("8");
-  lines.push("OUTLINE");
-  lines.push("10");
-  lines.push("0"); // Start X
-  lines.push("20");
-  lines.push(String(-outerR)); // Start Y
-  lines.push("11");
-  lines.push("0"); // End X
-  lines.push("21");
-  lines.push(String(-innerR)); // End Y
-
-  // Draw right radial line (from outer to inner at angle 270 + angleDegrees)
-  const angleRad = angle;
-  const rightOuterX = outerR * Math.sin(angleRad);
-  const rightOuterY = -outerR * Math.cos(angleRad);
-  const rightInnerX = innerR * Math.sin(angleRad);
-  const rightInnerY = -innerR * Math.cos(angleRad);
+  // Draw left radial line
+  const leftOuterX = outerR * Math.sin(-angle);
+  const leftOuterY = -outerR * Math.cos(-angle);
+  const leftInnerX = innerR * Math.sin(-angle);
+  const leftInnerY = -innerR * Math.cos(-angle);
 
   lines.push("0");
   lines.push("LINE");
   lines.push("8");
   lines.push("OUTLINE");
   lines.push("10");
-  lines.push(String(rightOuterX)); // Start X
+  lines.push(String(leftOuterX));
   lines.push("20");
-  lines.push(String(rightOuterY)); // Start Y
+  lines.push(String(leftOuterY));
   lines.push("11");
-  lines.push(String(rightInnerX)); // End X
+  lines.push(String(leftInnerX));
   lines.push("21");
-  lines.push(String(rightInnerY)); // End Y
+  lines.push(String(leftInnerY));
+
+  // Draw right radial line
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push("0");
+  lines.push("20");
+  lines.push(String(-outerR));
+  lines.push("11");
+  lines.push("0");
+  lines.push("21");
+  lines.push(String(-innerR));
 
   // Add dimension text annotations
-  // Inner radius label
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");
@@ -189,7 +186,6 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("1");
   lines.push(`R=${innerR.toFixed(1)}`);
 
-  // Outer radius label
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");
@@ -203,7 +199,6 @@ export function generateDXFContent(result: CalculationResult): string {
   lines.push("1");
   lines.push(`r=${outerR.toFixed(1)}`);
 
-  // Angle label
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");

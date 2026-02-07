@@ -111,10 +111,8 @@ export function calculateLampshade(params: LampshadeParams): CalculationResult {
   // Calculate basic measurements
   result.topRadius = params.topDiameter / 2;
   result.bottomRadius = params.bottomDiameter / 2;
-  result.slantHeight = Math.sqrt(
-    Math.pow(params.height, 2) + 
-    Math.pow(result.bottomRadius - result.topRadius, 2)
-  );
+  // params.height is now the slant height directly
+  result.slantHeight = params.height;
   
   result.topCircumference = 2 * Math.PI * result.topRadius;
   result.bottomCircumference = 2 * Math.PI * result.bottomRadius;
