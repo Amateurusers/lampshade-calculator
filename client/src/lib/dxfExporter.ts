@@ -10,8 +10,10 @@ import { WaveformLampshadeResult } from "./waveformLampshadeCalculator";
 
 export function generateDXFContent(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): string {
   // Check if it's a polygon or waveform result
-  if ('sides' in result || 'waveCount' in result) {
-    return generatePolygonOrWaveformDXF(result as PolygonLampshadeResult | WaveformLampshadeResult);
+  if ('sides' in result) {
+    return generatePolygonDXF(result as PolygonLampshadeResult);
+  } else if ('waveCount' in result) {
+    return generateWaveformDXF(result as WaveformLampshadeResult);
   }
   
   // Otherwise it's a cone result
@@ -19,12 +21,6 @@ export function generateDXFContent(result: CalculationResult | PolygonLampshadeR
     throw new Error("Cannot export invalid calculation result");
   }
 
-  const innerR = result.innerRadius;
-  const outerR = result.outerRadius;
-  const angle = result.sectorAngleRad;
-  const angleDegrees = result.sectorAngle;
-
-  // DXF file content
   const lines: string[] = [];
 
   // SECTION: HEADER
@@ -38,19 +34,20 @@ export function generateDXFContent(result: CalculationResult | PolygonLampshadeR
   lines.push("1");
   lines.push("AC1009");
   
+  const maxExtent = Math.max(result.outerRadius, result.innerRadius) * 1.2;
   lines.push("9");
   lines.push("$EXTMIN");
   lines.push("10");
-  lines.push(String(-outerR - 100));
+  lines.push(String(-maxExtent));
   lines.push("20");
-  lines.push(String(-outerR - 100));
+  lines.push(String(-maxExtent));
   
   lines.push("9");
   lines.push("$EXTMAX");
   lines.push("10");
-  lines.push(String(outerR + 100));
+  lines.push(String(maxExtent));
   lines.push("20");
-  lines.push(String(outerR + 100));
+  lines.push(String(maxExtent));
   
   lines.push("0");
   lines.push("ENDSEC");
@@ -112,57 +109,50 @@ export function generateDXFContent(result: CalculationResult | PolygonLampshadeR
   lines.push("2");
   lines.push("ENTITIES");
 
-  // Draw outer arc using ARC entity
-  // Start angle: 270 - angleDegrees (left side)
-  // End angle: 270 (right side, pointing down)
+  const centerX = 0;
+  const centerY = 0;
+
+  // Draw outer arc
+  const outerStartAngle = 270 - result.sectorAngle / 2;
+  const outerEndAngle = 270 + result.sectorAngle / 2;
+
   lines.push("0");
   lines.push("ARC");
   lines.push("8");
   lines.push("OUTLINE");
   lines.push("10");
-  lines.push("0");
+  lines.push(String(centerX));
   lines.push("20");
-  lines.push("0");
+  lines.push(String(centerY));
   lines.push("40");
-  lines.push(String(outerR));
+  lines.push(String(result.outerRadius));
   lines.push("50");
-  lines.push(String(270 - angleDegrees));
+  lines.push(String(outerStartAngle));
   lines.push("51");
-  lines.push("270");
+  lines.push(String(outerEndAngle));
 
-  // Draw inner arc using ARC entity
-  // Same angle range as outer arc but with smaller radius
+  // Draw inner arc
   lines.push("0");
   lines.push("ARC");
   lines.push("8");
   lines.push("OUTLINE");
   lines.push("10");
-  lines.push("0");
+  lines.push(String(centerX));
   lines.push("20");
-  lines.push("0");
+  lines.push(String(centerY));
   lines.push("40");
-  lines.push(String(innerR));
+  lines.push(String(result.innerRadius));
   lines.push("50");
-  lines.push(String(270 - angleDegrees));
+  lines.push(String(outerStartAngle));
   lines.push("51");
-  lines.push("270");
+  lines.push(String(outerEndAngle));
 
-  // Calculate the two radial line endpoints
-  // Left radial line: at angle (270 - angleDegrees) degrees
-  const leftAngleDeg = 270 - angleDegrees;
-  const leftAngleRad = (leftAngleDeg * Math.PI) / 180;
-  const leftOuterX = outerR * Math.cos(leftAngleRad);
-  const leftOuterY = outerR * Math.sin(leftAngleRad);
-  const leftInnerX = innerR * Math.cos(leftAngleRad);
-  const leftInnerY = innerR * Math.sin(leftAngleRad);
+  // Draw left radius line
+  const leftOuterX = centerX + result.outerRadius * Math.cos((outerStartAngle * Math.PI) / 180);
+  const leftOuterY = centerY + result.outerRadius * Math.sin((outerStartAngle * Math.PI) / 180);
+  const leftInnerX = centerX + result.innerRadius * Math.cos((outerStartAngle * Math.PI) / 180);
+  const leftInnerY = centerY + result.innerRadius * Math.sin((outerStartAngle * Math.PI) / 180);
 
-  // Right radial line: at angle 270 degrees (pointing down)
-  const rightOuterX = 0;
-  const rightOuterY = -outerR;
-  const rightInnerX = 0;
-  const rightInnerY = -innerR;
-
-  // Draw left radial line
   lines.push("0");
   lines.push("LINE");
   lines.push("8");
@@ -176,7 +166,12 @@ export function generateDXFContent(result: CalculationResult | PolygonLampshadeR
   lines.push("21");
   lines.push(String(leftInnerY));
 
-  // Draw right radial line
+  // Draw right radius line
+  const rightOuterX = centerX + result.outerRadius * Math.cos((outerEndAngle * Math.PI) / 180);
+  const rightOuterY = centerY + result.outerRadius * Math.sin((outerEndAngle * Math.PI) / 180);
+  const rightInnerX = centerX + result.innerRadius * Math.cos((outerEndAngle * Math.PI) / 180);
+  const rightInnerY = centerY + result.innerRadius * Math.sin((outerEndAngle * Math.PI) / 180);
+
   lines.push("0");
   lines.push("LINE");
   lines.push("8");
@@ -190,45 +185,45 @@ export function generateDXFContent(result: CalculationResult | PolygonLampshadeR
   lines.push("21");
   lines.push(String(rightInnerY));
 
-  // Add dimension text annotations
+  // Add dimension text
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");
   lines.push("0");
   lines.push("10");
-  lines.push(String(-outerR - 50));
+  lines.push("0");
   lines.push("20");
-  lines.push(String(-innerR));
+  lines.push(String(-(result.outerRadius + result.innerRadius) / 4));
   lines.push("40");
-  lines.push("8");
+  lines.push("15");
   lines.push("1");
-  lines.push(`R=${innerR.toFixed(1)}`);
+  lines.push(`R=${result.outerRadius.toFixed(1)}`);
 
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");
   lines.push("0");
   lines.push("10");
-  lines.push(String(-outerR - 50));
+  lines.push("0");
   lines.push("20");
-  lines.push(String(-outerR));
+  lines.push(String(-(result.outerRadius + result.innerRadius) / 2));
   lines.push("40");
-  lines.push("8");
+  lines.push("15");
   lines.push("1");
-  lines.push(`r=${outerR.toFixed(1)}`);
+  lines.push(`r=${result.innerRadius.toFixed(1)}`);
 
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");
   lines.push("0");
   lines.push("10");
+  lines.push(String(result.outerRadius * 0.7));
   lines.push("20");
-  lines.push("20");
+  lines.push("0");
   lines.push("40");
-  lines.push("40");
-  lines.push("8");
+  lines.push("15");
   lines.push("1");
-  lines.push(`Angle=${angleDegrees.toFixed(1)}deg`);
+  lines.push(`θ=${result.sectorAngle.toFixed(1)}°`);
 
   lines.push("0");
   lines.push("ENDSEC");
@@ -241,9 +236,9 @@ export function generateDXFContent(result: CalculationResult | PolygonLampshadeR
 }
 
 /**
- * Generate DXF content for polygon or waveform lampshade
+ * Generate DXF content for polygon lampshade
  */
-function generatePolygonOrWaveformDXF(result: PolygonLampshadeResult | WaveformLampshadeResult): string {
+function generatePolygonDXF(result: PolygonLampshadeResult): string {
   const lines: string[] = [];
 
   // SECTION: HEADER
@@ -332,66 +327,89 @@ function generatePolygonOrWaveformDXF(result: PolygonLampshadeResult | WaveformL
   lines.push("2");
   lines.push("ENTITIES");
 
-  // For polygon and waveform, draw simplified representation
-  // Draw a rectangle representing the unfolding pattern
-  const width = 300;
-  const height = 200;
+  // Draw multiple trapezoids for each side of the polygon
+  const sides = result.sides;
+  const topRadius = result.topDiameter / 2;
+  const bottomRadius = result.bottomDiameter / 2;
+  const slantHeight = result.slantHeight;
   
-  // Draw rectangle outline
-  lines.push("0");
-  lines.push("LINE");
-  lines.push("8");
-  lines.push("OUTLINE");
-  lines.push("10");
-  lines.push(String(-width / 2));
-  lines.push("20");
-  lines.push(String(-height / 2));
-  lines.push("11");
-  lines.push(String(width / 2));
-  lines.push("21");
-  lines.push(String(-height / 2));
+  // Calculate the angle for each trapezoid
+  const trapezoidAngle = 360 / sides;
+  const trapezoidWidth = 2 * Math.PI * topRadius / sides;
+  const bottomTrapezoidWidth = 2 * Math.PI * bottomRadius / sides;
 
-  lines.push("0");
-  lines.push("LINE");
-  lines.push("8");
-  lines.push("OUTLINE");
-  lines.push("10");
-  lines.push(String(width / 2));
-  lines.push("20");
-  lines.push(String(-height / 2));
-  lines.push("11");
-  lines.push(String(width / 2));
-  lines.push("21");
-  lines.push(String(height / 2));
+  // Draw trapezoids arranged horizontally
+  let xOffset = -trapezoidWidth * sides / 2;
+  
+  for (let i = 0; i < sides; i++) {
+    const x1 = xOffset;
+    const x2 = xOffset + trapezoidWidth;
+    const x3 = xOffset + bottomTrapezoidWidth + (trapezoidWidth - bottomTrapezoidWidth) / 2;
+    const x4 = xOffset + (trapezoidWidth - bottomTrapezoidWidth) / 2;
+    
+    const y1 = 0;
+    const y2 = slantHeight;
 
-  lines.push("0");
-  lines.push("LINE");
-  lines.push("8");
-  lines.push("OUTLINE");
-  lines.push("10");
-  lines.push(String(width / 2));
-  lines.push("20");
-  lines.push(String(height / 2));
-  lines.push("11");
-  lines.push(String(-width / 2));
-  lines.push("21");
-  lines.push(String(height / 2));
+    // Top edge
+    lines.push("0");
+    lines.push("LINE");
+    lines.push("8");
+    lines.push("OUTLINE");
+    lines.push("10");
+    lines.push(String(x1));
+    lines.push("20");
+    lines.push(String(y1));
+    lines.push("11");
+    lines.push(String(x2));
+    lines.push("21");
+    lines.push(String(y1));
 
-  lines.push("0");
-  lines.push("LINE");
-  lines.push("8");
-  lines.push("OUTLINE");
-  lines.push("10");
-  lines.push(String(-width / 2));
-  lines.push("20");
-  lines.push(String(height / 2));
-  lines.push("11");
-  lines.push(String(-width / 2));
-  lines.push("21");
-  lines.push(String(-height / 2));
+    // Right edge
+    lines.push("0");
+    lines.push("LINE");
+    lines.push("8");
+    lines.push("OUTLINE");
+    lines.push("10");
+    lines.push(String(x2));
+    lines.push("20");
+    lines.push(String(y1));
+    lines.push("11");
+    lines.push(String(x3));
+    lines.push("21");
+    lines.push(String(y2));
+
+    // Bottom edge
+    lines.push("0");
+    lines.push("LINE");
+    lines.push("8");
+    lines.push("OUTLINE");
+    lines.push("10");
+    lines.push(String(x3));
+    lines.push("20");
+    lines.push(String(y2));
+    lines.push("11");
+    lines.push(String(x4));
+    lines.push("21");
+    lines.push(String(y2));
+
+    // Left edge
+    lines.push("0");
+    lines.push("LINE");
+    lines.push("8");
+    lines.push("OUTLINE");
+    lines.push("10");
+    lines.push(String(x4));
+    lines.push("20");
+    lines.push(String(y2));
+    lines.push("11");
+    lines.push(String(x1));
+    lines.push("21");
+    lines.push(String(y1));
+
+    xOffset += trapezoidWidth;
+  }
 
   // Add text annotation
-  const typeLabel = 'sides' in result ? `${result.sides}边形灯罩` : "波浪形灯罩";
   lines.push("0");
   lines.push("TEXT");
   lines.push("8");
@@ -399,11 +417,221 @@ function generatePolygonOrWaveformDXF(result: PolygonLampshadeResult | WaveformL
   lines.push("10");
   lines.push("0");
   lines.push("20");
-  lines.push("0");
+  lines.push(String(-50));
   lines.push("40");
   lines.push("20");
   lines.push("1");
-  lines.push(typeLabel);
+  lines.push(`${sides}边形灯罩展开图`);
+
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // EOF
+  lines.push("0");
+  lines.push("EOF");
+
+  return lines.join("\n");
+}
+
+/**
+ * Generate DXF content for waveform lampshade
+ */
+function generateWaveformDXF(result: WaveformLampshadeResult): string {
+  const lines: string[] = [];
+
+  // SECTION: HEADER
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("HEADER");
+  
+  lines.push("9");
+  lines.push("$ACADVER");
+  lines.push("1");
+  lines.push("AC1009");
+  
+  const maxExtent = 500;
+  lines.push("9");
+  lines.push("$EXTMIN");
+  lines.push("10");
+  lines.push(String(-maxExtent));
+  lines.push("20");
+  lines.push(String(-maxExtent));
+  
+  lines.push("9");
+  lines.push("$EXTMAX");
+  lines.push("10");
+  lines.push(String(maxExtent));
+  lines.push("20");
+  lines.push(String(maxExtent));
+  
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // SECTION: TABLES
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("TABLES");
+
+  // LAYER table
+  lines.push("0");
+  lines.push("TABLE");
+  lines.push("2");
+  lines.push("LAYER");
+  lines.push("70");
+  lines.push("2");
+
+  // Layer 0
+  lines.push("0");
+  lines.push("LAYER");
+  lines.push("2");
+  lines.push("0");
+  lines.push("70");
+  lines.push("0");
+  lines.push("62");
+  lines.push("7");
+  lines.push("6");
+  lines.push("CONTINUOUS");
+
+  // Outline layer
+  lines.push("0");
+  lines.push("LAYER");
+  lines.push("2");
+  lines.push("OUTLINE");
+  lines.push("70");
+  lines.push("0");
+  lines.push("62");
+  lines.push("1");
+  lines.push("6");
+  lines.push("CONTINUOUS");
+
+  lines.push("0");
+  lines.push("ENDTAB");
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // SECTION: BLOCKS
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("BLOCKS");
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // SECTION: ENTITIES
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("ENTITIES");
+
+  // Draw waveform pattern
+  const topRadius = result.topDiameter / 2;
+  const bottomRadius = result.bottomDiameter / 2;
+  const slantHeight = result.slantHeight;
+  const waveCount = result.waveCount;
+  const waveHeight = result.waveHeight;
+  
+  const circumference = 2 * Math.PI * topRadius;
+  const wavelength = circumference / waveCount;
+  
+  // Draw top wavy line
+  let prevX = -circumference / 2;
+  let prevY = 0;
+  
+  for (let i = 0; i <= waveCount * 10; i++) {
+    const t = i / (waveCount * 10);
+    const x = -circumference / 2 + t * circumference;
+    const y = waveHeight * Math.sin(t * waveCount * 2 * Math.PI);
+    
+    if (i > 0) {
+      lines.push("0");
+      lines.push("LINE");
+      lines.push("8");
+      lines.push("OUTLINE");
+      lines.push("10");
+      lines.push(String(prevX));
+      lines.push("20");
+      lines.push(String(prevY));
+      lines.push("11");
+      lines.push(String(x));
+      lines.push("21");
+      lines.push(String(y));
+    }
+    
+    prevX = x;
+    prevY = y;
+  }
+
+  // Draw bottom wavy line
+  prevX = -circumference / 2;
+  prevY = slantHeight;
+  
+  for (let i = 0; i <= waveCount * 10; i++) {
+    const t = i / (waveCount * 10);
+    const x = -circumference / 2 + t * circumference;
+    const bottomWaveHeight = waveHeight * (bottomRadius / topRadius);
+    const y = slantHeight + bottomWaveHeight * Math.sin(t * waveCount * 2 * Math.PI);
+    
+    if (i > 0) {
+      lines.push("0");
+      lines.push("LINE");
+      lines.push("8");
+      lines.push("OUTLINE");
+      lines.push("10");
+      lines.push(String(prevX));
+      lines.push("20");
+      lines.push(String(prevY));
+      lines.push("11");
+      lines.push(String(x));
+      lines.push("21");
+      lines.push(String(y));
+    }
+    
+    prevX = x;
+    prevY = y;
+  }
+
+  // Draw side edges
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(-circumference / 2));
+  lines.push("20");
+  lines.push("0");
+  lines.push("11");
+  lines.push(String(-circumference / 2));
+  lines.push("21");
+  lines.push(String(slantHeight));
+
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(circumference / 2));
+  lines.push("20");
+  lines.push("0");
+  lines.push("11");
+  lines.push(String(circumference / 2));
+  lines.push("21");
+  lines.push(String(slantHeight));
+
+  // Add text annotation
+  lines.push("0");
+  lines.push("TEXT");
+  lines.push("8");
+  lines.push("0");
+  lines.push("10");
+  lines.push("0");
+  lines.push("20");
+  lines.push(String(-50));
+  lines.push("40");
+  lines.push("20");
+  lines.push("1");
+  lines.push(`波浪形灯罩展开图 (${waveCount}波)`);
 
   lines.push("0");
   lines.push("ENDSEC");
@@ -419,19 +647,14 @@ function generatePolygonOrWaveformDXF(result: PolygonLampshadeResult | WaveformL
  * Export calculation result as DXF file
  */
 export function exportAsDXF(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): void {
-  try {
-    const dxfContent = generateDXFContent(result);
-    const blob = new Blob([dxfContent], { type: "application/dxf; charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lampshade-unfolding-${Date.now()}.dxf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error exporting DXF:", error);
-    throw error;
-  }
+  const dxfContent = generateDXFContent(result);
+  const blob = new Blob([dxfContent], { type: "application/dxf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "lampshade-unfolding.dxf";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
