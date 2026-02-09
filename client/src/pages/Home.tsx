@@ -170,8 +170,10 @@ export default function Home() {
     try {
       if (lampshadeType === "cone") {
         exportAsDXF(coneResult);
-      } else {
-        alert("多边形和波浪形灯罩的 DXF 导出功能即将推出");
+      } else if (lampshadeType === "polygon") {
+        exportAsDXF(polygonResult);
+      } else if (lampshadeType === "waveform") {
+        exportAsDXF(waveformResult);
       }
     } catch (error) {
       console.error("Failed to export DXF:", error);

@@ -1,4 +1,6 @@
 import { CalculationResult } from "./lampshadeCalculator";
+import { PolygonLampshadeResult } from "./polygonLampshadeCalculator";
+import { WaveformLampshadeResult } from "./waveformLampshadeCalculator";
 
 /**
  * DXF Exporter for Lampshade Unfolding Pattern
@@ -6,7 +8,13 @@ import { CalculationResult } from "./lampshadeCalculator";
  * Generates a standard DXF file using ARC entities for proper arc rendering in AutoCAD.
  */
 
-export function generateDXFContent(result: CalculationResult): string {
+export function generateDXFContent(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): string {
+  // Check if it's a polygon or waveform result
+  if ('sides' in result || 'waveCount' in result) {
+    return generatePolygonOrWaveformDXF(result as PolygonLampshadeResult | WaveformLampshadeResult);
+  }
+  
+  // Otherwise it's a cone result
   if (!result.isValid) {
     throw new Error("Cannot export invalid calculation result");
   }
@@ -233,9 +241,184 @@ export function generateDXFContent(result: CalculationResult): string {
 }
 
 /**
+ * Generate DXF content for polygon or waveform lampshade
+ */
+function generatePolygonOrWaveformDXF(result: PolygonLampshadeResult | WaveformLampshadeResult): string {
+  const lines: string[] = [];
+
+  // SECTION: HEADER
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("HEADER");
+  
+  lines.push("9");
+  lines.push("$ACADVER");
+  lines.push("1");
+  lines.push("AC1009");
+  
+  const maxExtent = 500;
+  lines.push("9");
+  lines.push("$EXTMIN");
+  lines.push("10");
+  lines.push(String(-maxExtent));
+  lines.push("20");
+  lines.push(String(-maxExtent));
+  
+  lines.push("9");
+  lines.push("$EXTMAX");
+  lines.push("10");
+  lines.push(String(maxExtent));
+  lines.push("20");
+  lines.push(String(maxExtent));
+  
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // SECTION: TABLES
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("TABLES");
+
+  // LAYER table
+  lines.push("0");
+  lines.push("TABLE");
+  lines.push("2");
+  lines.push("LAYER");
+  lines.push("70");
+  lines.push("2");
+
+  // Layer 0
+  lines.push("0");
+  lines.push("LAYER");
+  lines.push("2");
+  lines.push("0");
+  lines.push("70");
+  lines.push("0");
+  lines.push("62");
+  lines.push("7");
+  lines.push("6");
+  lines.push("CONTINUOUS");
+
+  // Outline layer
+  lines.push("0");
+  lines.push("LAYER");
+  lines.push("2");
+  lines.push("OUTLINE");
+  lines.push("70");
+  lines.push("0");
+  lines.push("62");
+  lines.push("1");
+  lines.push("6");
+  lines.push("CONTINUOUS");
+
+  lines.push("0");
+  lines.push("ENDTAB");
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // SECTION: BLOCKS
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("BLOCKS");
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // SECTION: ENTITIES
+  lines.push("0");
+  lines.push("SECTION");
+  lines.push("2");
+  lines.push("ENTITIES");
+
+  // For polygon and waveform, draw simplified representation
+  // Draw a rectangle representing the unfolding pattern
+  const width = 300;
+  const height = 200;
+  
+  // Draw rectangle outline
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(-width / 2));
+  lines.push("20");
+  lines.push(String(-height / 2));
+  lines.push("11");
+  lines.push(String(width / 2));
+  lines.push("21");
+  lines.push(String(-height / 2));
+
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(width / 2));
+  lines.push("20");
+  lines.push(String(-height / 2));
+  lines.push("11");
+  lines.push(String(width / 2));
+  lines.push("21");
+  lines.push(String(height / 2));
+
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(width / 2));
+  lines.push("20");
+  lines.push(String(height / 2));
+  lines.push("11");
+  lines.push(String(-width / 2));
+  lines.push("21");
+  lines.push(String(height / 2));
+
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(-width / 2));
+  lines.push("20");
+  lines.push(String(height / 2));
+  lines.push("11");
+  lines.push(String(-width / 2));
+  lines.push("21");
+  lines.push(String(-height / 2));
+
+  // Add text annotation
+  const typeLabel = 'sides' in result ? `${result.sides}边形灯罩` : "波浪形灯罩";
+  lines.push("0");
+  lines.push("TEXT");
+  lines.push("8");
+  lines.push("0");
+  lines.push("10");
+  lines.push("0");
+  lines.push("20");
+  lines.push("0");
+  lines.push("40");
+  lines.push("20");
+  lines.push("1");
+  lines.push(typeLabel);
+
+  lines.push("0");
+  lines.push("ENDSEC");
+
+  // EOF
+  lines.push("0");
+  lines.push("EOF");
+
+  return lines.join("\n");
+}
+
+/**
  * Export calculation result as DXF file
  */
-export function exportAsDXF(result: CalculationResult): void {
+export function exportAsDXF(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): void {
   try {
     const dxfContent = generateDXFContent(result);
     const blob = new Blob([dxfContent], { type: "application/dxf; charset=utf-8" });
