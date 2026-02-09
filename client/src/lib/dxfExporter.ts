@@ -200,6 +200,9 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
  * 
  * Wave distribution: each wave occupies exactly (sectorAngle / waveCount) degrees,
  * ensuring uniform distribution across the entire arc.
+ * 
+ * Wave amplitude = waveHeight / 2, so peak-to-trough distance = waveHeight.
+ * This matches the user's expectation that waveHeight is the total wave height.
  */
 function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const lines: string[] = [];
@@ -259,7 +262,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
 
   // Use enough segments for smooth curves
-  const numSegments = Math.max(waveCount * 20, 80);
+  // More segments per wave cycle = smoother curve
+  const numSegments = Math.max(waveCount * 40, 160);
 
   // Draw outer arc (bottom edge of lampshade)
   if (bottomWave) {
@@ -273,8 +277,10 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       
       // Wave offset: use full cycles so waves are evenly distributed
       // sin(t * waveCount * 2π) gives exactly waveCount complete waves from t=0 to t=1
-      const waveOffset1 = waveHeight * Math.sin(t1 * waveCount * 2 * Math.PI);
-      const waveOffset2 = waveHeight * Math.sin(t2 * waveCount * 2 * Math.PI);
+      // amplitude = waveHeight/2 so that peak-to-trough = waveHeight
+      const amplitude = waveHeight / 2;
+      const waveOffset1 = amplitude * Math.sin(t1 * waveCount * 2 * Math.PI);
+      const waveOffset2 = amplitude * Math.sin(t2 * waveCount * 2 * Math.PI);
       
       const r1 = outerR + waveOffset1;
       const r2 = outerR + waveOffset2;
@@ -301,8 +307,10 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       const angle1 = startAngleRad + t1 * sectorAngleRad;
       const angle2 = startAngleRad + t2 * sectorAngleRad;
       
-      const waveOffset1 = waveHeight * Math.sin(t1 * waveCount * 2 * Math.PI);
-      const waveOffset2 = waveHeight * Math.sin(t2 * waveCount * 2 * Math.PI);
+      // amplitude = waveHeight/2 so that peak-to-trough = waveHeight
+      const amplitude = waveHeight / 2;
+      const waveOffset1 = amplitude * Math.sin(t1 * waveCount * 2 * Math.PI);
+      const waveOffset2 = amplitude * Math.sin(t2 * waveCount * 2 * Math.PI);
       
       const r1 = innerR + waveOffset1;
       const r2 = innerR + waveOffset2;

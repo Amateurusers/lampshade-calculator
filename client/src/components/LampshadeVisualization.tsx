@@ -417,7 +417,7 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   fillPath.setAttribute("opacity", "0.3");
   sectorGroup.appendChild(fillPath);
 
-  const numSegments = Math.max(waveCount * 20, 80);
+  const numSegments = Math.max(waveCount * 40, 160);
 
   // Outer arc (bottom edge of lampshade)
   if (result.bottomWave) {
@@ -425,7 +425,8 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
     for (let i = 0; i <= numSegments; i++) {
       const t = i / numSegments;
       const angle = t * sectorAngleRad;
-      const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
+      const amplitude = waveHeightScaled / 2; // peak-to-trough = waveHeight
+      const waveOffset = amplitude * Math.sin(t * waveCount * 2 * Math.PI);
       const r = outerR + waveOffset;
       const x = r * Math.cos(angle);
       const y = r * Math.sin(angle);
@@ -454,7 +455,8 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
     for (let i = 0; i <= numSegments; i++) {
       const t = i / numSegments;
       const angle = t * sectorAngleRad;
-      const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
+      const amplitude = waveHeightScaled / 2; // peak-to-trough = waveHeight
+      const waveOffset = amplitude * Math.sin(t * waveCount * 2 * Math.PI);
       const r = innerR + waveOffset;
       const x = r * Math.cos(angle);
       const y = r * Math.sin(angle);
