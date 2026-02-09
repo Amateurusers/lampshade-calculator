@@ -122,9 +122,9 @@ export function calculateWaveformLampshade(
 
   // Calculate actual slant height (including wave distortion in vertical direction)
   // The wave adds some vertical component
-  result.actualSlantHeight = Math.sqrt(
-    Math.pow(input.slantHeight, 2) + Math.pow(waveAmplitude, 2)
-  );
+  result.actualSlantHeight = input.slantHeight > 0
+    ? Math.sqrt(Math.pow(input.slantHeight, 2) + Math.pow(waveAmplitude, 2))
+    : waveAmplitude;
 
   // Material dimensions
   result.materialWidth = Math.max(

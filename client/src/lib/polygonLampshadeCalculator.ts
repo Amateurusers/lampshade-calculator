@@ -108,13 +108,14 @@ export function calculatePolygonLampshade(
   // Calculate the radius from the apex to the top and bottom edges
   // Using similar triangles: R_top / R_bottom = top_radius / bottom_radius
   const radiusDiff = result.bottomRadius - result.topRadius;
-  const verticalHeight = Math.sqrt(
-    Math.pow(input.slantHeight, 2) - Math.pow(radiusDiff, 2)
-  );
+  const radiusDiffAbs = Math.abs(radiusDiff);
+  const verticalHeight = radiusDiffAbs > 0 
+    ? Math.sqrt(Math.pow(input.slantHeight, 2) - Math.pow(radiusDiffAbs, 2))
+    : input.slantHeight;
 
   // Calculate apex distance (distance from apex to top circle)
   const apexDistance =
-    (result.topRadius * input.slantHeight) / radiusDiff;
+    radiusDiff > 0 ? (result.topRadius * input.slantHeight) / radiusDiff : 0;
 
   // Total slant height from apex to bottom
   const totalSlantHeight = apexDistance + input.slantHeight;
