@@ -421,7 +421,7 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
   lines.push("40");
   lines.push("20");
   lines.push("1");
-  lines.push(`${sides}边形灯罩展开图`);
+  lines.push(`Polygon Lampshade - ${sides} Sides`);
 
   lines.push("0");
   lines.push("ENDSEC");
@@ -631,7 +631,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   lines.push("40");
   lines.push("20");
   lines.push("1");
-  lines.push(`波浪形灯罩展开图 (${waveCount}波)`);
+  lines.push(`Waveform Lampshade - ${waveCount} Waves`);
 
   lines.push("0");
   lines.push("ENDSEC");
