@@ -205,23 +205,31 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
   appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
   appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
 
-  // Top edge (wavy)
-  const topWavePath = generateSineWavePath(topLeftX, topY, topRightX, topY, result.waveCount || 3, 8);
-  const topWave = createSvgElement("path");
-  topWave.setAttribute("d", topWavePath);
-  topWave.setAttribute("stroke", "#0d47a1");
-  topWave.setAttribute("stroke-width", "2");
-  topWave.setAttribute("fill", "none");
-  outlineGroup.appendChild(topWave);
+  // Top edge (wavy or straight based on topWave setting)
+  if (result.topWave) {
+    const topWavePath = generateSineWavePath(topLeftX, topY, topRightX, topY, result.waveCount || 3, 8);
+    const topWaveEl = createSvgElement("path");
+    topWaveEl.setAttribute("d", topWavePath);
+    topWaveEl.setAttribute("stroke", "#0d47a1");
+    topWaveEl.setAttribute("stroke-width", "2");
+    topWaveEl.setAttribute("fill", "none");
+    outlineGroup.appendChild(topWaveEl);
+  } else {
+    appendLine(outlineGroup, topLeftX, topY, topRightX, topY, "#0d47a1", 2);
+  }
 
-  // Bottom edge (wavy)
-  const bottomWavePath = generateSineWavePath(bottomLeftX, bottomY, bottomRightX, bottomY, result.waveCount || 3, 8);
-  const bottomWave = createSvgElement("path");
-  bottomWave.setAttribute("d", bottomWavePath);
-  bottomWave.setAttribute("stroke", "#0d47a1");
-  bottomWave.setAttribute("stroke-width", "2");
-  bottomWave.setAttribute("fill", "none");
-  outlineGroup.appendChild(bottomWave);
+  // Bottom edge (wavy or straight based on bottomWave setting)
+  if (result.bottomWave) {
+    const bottomWavePath = generateSineWavePath(bottomLeftX, bottomY, bottomRightX, bottomY, result.waveCount || 3, 8);
+    const bottomWaveEl = createSvgElement("path");
+    bottomWaveEl.setAttribute("d", bottomWavePath);
+    bottomWaveEl.setAttribute("stroke", "#0d47a1");
+    bottomWaveEl.setAttribute("stroke-width", "2");
+    bottomWaveEl.setAttribute("fill", "none");
+    outlineGroup.appendChild(bottomWaveEl);
+  } else {
+    appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, "#0d47a1", 2);
+  }
 
   svg.appendChild(outlineGroup);
 
@@ -382,7 +390,7 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   const centerX = width / 2;
   const centerY = height / 2;
 
-  const maxRadius = result.outerRadius;
+  const maxRadius = result.outerRadius + result.waveHeight;
   const scale = Math.min(width, height) / (maxRadius * 2.5);
 
   const innerR = result.innerRadius * scale;
@@ -396,70 +404,95 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   const sectorGroup = createSvgElement("g");
   sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
-  // Generate wavy outer arc path
-  const numSegments = waveCount * 20;
-  let outerWavePath = "";
-  for (let i = 0; i <= numSegments; i++) {
-    const t = i / numSegments;
-    const angle = t * sectorAngleRad;
-    const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
-    const r = outerR + waveOffset;
-    const x = r * Math.cos(angle);
-    const y = r * Math.sin(angle);
-    outerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  // Fill the base sector (background)
+  const rightOuterX = outerR * Math.cos(sectorAngleRad);
+  const rightOuterY = outerR * Math.sin(sectorAngleRad);
+  const rightInnerX = innerR * Math.cos(sectorAngleRad);
+  const rightInnerY = innerR * Math.sin(sectorAngleRad);
+  const largeArc = sectorAngleRad > Math.PI ? 1 : 0;
+  const fillPathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 ${largeArc} 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerR} 0 Z`;
+  const fillPath = createSvgElement("path");
+  fillPath.setAttribute("d", fillPathData);
+  fillPath.setAttribute("fill", "#e3f2fd");
+  fillPath.setAttribute("opacity", "0.3");
+  sectorGroup.appendChild(fillPath);
+
+  const numSegments = Math.max(waveCount * 20, 80);
+
+  // Outer arc (bottom edge of lampshade)
+  if (result.bottomWave) {
+    let outerWavePath = "";
+    for (let i = 0; i <= numSegments; i++) {
+      const t = i / numSegments;
+      const angle = t * sectorAngleRad;
+      const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
+      const r = outerR + waveOffset;
+      const x = r * Math.cos(angle);
+      const y = r * Math.sin(angle);
+      outerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+    }
+    const outerWave = createSvgElement("path");
+    outerWave.setAttribute("d", outerWavePath);
+    outerWave.setAttribute("stroke", "#0d47a1");
+    outerWave.setAttribute("stroke-width", "2");
+    outerWave.setAttribute("fill", "none");
+    sectorGroup.appendChild(outerWave);
+  } else {
+    // Smooth outer arc
+    const outerArcPath = describeArc(0, 0, outerR, 0, sectorAngleRad);
+    const outerArc = createSvgElement("path");
+    outerArc.setAttribute("d", outerArcPath);
+    outerArc.setAttribute("stroke", "#0d47a1");
+    outerArc.setAttribute("stroke-width", "2");
+    outerArc.setAttribute("fill", "none");
+    sectorGroup.appendChild(outerArc);
   }
 
-  const outerWave = createSvgElement("path");
-  outerWave.setAttribute("d", outerWavePath);
-  outerWave.setAttribute("stroke", "#0d47a1");
-  outerWave.setAttribute("stroke-width", "2");
-  outerWave.setAttribute("fill", "none");
-  sectorGroup.appendChild(outerWave);
-
-  // Generate wavy inner arc path
-  let innerWavePath = "";
-  for (let i = 0; i <= numSegments; i++) {
-    const t = i / numSegments;
-    const angle = t * sectorAngleRad;
-    const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
-    const r = innerR + waveOffset;
-    const x = r * Math.cos(angle);
-    const y = r * Math.sin(angle);
-    innerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  // Inner arc (top edge of lampshade)
+  if (result.topWave) {
+    let innerWavePath = "";
+    for (let i = 0; i <= numSegments; i++) {
+      const t = i / numSegments;
+      const angle = t * sectorAngleRad;
+      const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
+      const r = innerR + waveOffset;
+      const x = r * Math.cos(angle);
+      const y = r * Math.sin(angle);
+      innerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+    }
+    const innerWave = createSvgElement("path");
+    innerWave.setAttribute("d", innerWavePath);
+    innerWave.setAttribute("stroke", "#0d47a1");
+    innerWave.setAttribute("stroke-width", "2");
+    innerWave.setAttribute("fill", "none");
+    sectorGroup.appendChild(innerWave);
+  } else {
+    // Smooth inner arc
+    const innerArcPath = describeArc(0, 0, innerR, 0, sectorAngleRad);
+    const innerArc = createSvgElement("path");
+    innerArc.setAttribute("d", innerArcPath);
+    innerArc.setAttribute("stroke", "#0d47a1");
+    innerArc.setAttribute("stroke-width", "2");
+    innerArc.setAttribute("fill", "none");
+    sectorGroup.appendChild(innerArc);
   }
-
-  const innerWave = createSvgElement("path");
-  innerWave.setAttribute("d", innerWavePath);
-  innerWave.setAttribute("stroke", "#0d47a1");
-  innerWave.setAttribute("stroke-width", "2");
-  innerWave.setAttribute("fill", "none");
-  sectorGroup.appendChild(innerWave);
 
   // Left radial line
   appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
 
   // Right radial line
-  const rightOuterX = outerR * Math.cos(sectorAngleRad);
-  const rightOuterY = outerR * Math.sin(sectorAngleRad);
-  const rightInnerX = innerR * Math.cos(sectorAngleRad);
-  const rightInnerY = innerR * Math.sin(sectorAngleRad);
   appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
-
-  // Fill the base sector (without waves, for background)
-  const fillPath = createSvgElement("path");
-  const largeArc = sectorAngleRad > Math.PI ? 1 : 0;
-  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 ${largeArc} 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerR} 0 Z`;
-  fillPath.setAttribute("d", pathData);
-  fillPath.setAttribute("fill", "#e3f2fd");
-  fillPath.setAttribute("opacity", "0.3");
-  sectorGroup.appendChild(fillPath);
 
   svg.appendChild(sectorGroup);
 
+  // Labels
+  const waveInfo = [];
+  if (result.topWave) waveInfo.push("上口");
+  if (result.bottomWave) waveInfo.push("下口");
   const textOffset = 20;
   appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, "#0d47a1");
   appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}° (${result.waveCount}波)`, 12, "#0d47a1");
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}° (${result.waveCount}波, ${waveInfo.join('+')})`, 12, "#0d47a1");
 }
 
 // ==================== SVG Helpers ====================

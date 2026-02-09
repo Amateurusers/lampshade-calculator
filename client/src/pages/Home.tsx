@@ -66,6 +66,8 @@ export default function Home() {
     waveCount: 4,
     waveHeight: 10,
     waveType: "sine",
+    topWave: true,
+    bottomWave: true,
   });
 
   // Results
@@ -136,6 +138,8 @@ export default function Home() {
           waveCount: 4,
           waveHeight: 10,
           waveType: "sine",
+          topWave: true,
+          bottomWave: true,
         });
         break;
     }
@@ -212,7 +216,9 @@ export default function Home() {
         ["下口直径 (mm)", String(waveformParams.bottomDiameter)],
         ["斜高 (mm)", String(waveformParams.slantHeight)],
         ["波数", String(waveformParams.waveCount)],
-        ["波高 (mm)", String(waveformParams.waveHeight)]
+        ["波高 (mm)", String(waveformParams.waveHeight)],
+        ["上口波浪", waveformParams.topWave ? "是" : "否"],
+        ["下口波浪", waveformParams.bottomWave ? "是" : "否"]
       );
     }
 
@@ -490,6 +496,42 @@ export default function Home() {
                       <SelectItem value="cosine">余弦波</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                {/* Wave edge toggles */}
+                <div className="border-t border-border pt-4 mt-2">
+                  <label className="block text-sm font-medium text-foreground mb-3">
+                    波浪边选择
+                  </label>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={waveformParams.topWave}
+                        onChange={(e) =>
+                          setWaveformParams({
+                            ...waveformParams,
+                            topWave: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-foreground">上口有波浪</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={waveformParams.bottomWave}
+                        onChange={(e) =>
+                          setWaveformParams({
+                            ...waveformParams,
+                            bottomWave: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-foreground">下口有波浪</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}

@@ -191,8 +191,15 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
  * Generate DXF content for waveform lampshade
  * 
  * The waveform lampshade unfolds into an annulus sector (same as conical),
- * but with wavy inner and outer arcs. The waves are distributed along the
- * arc path (radial direction), not along a straight line.
+ * but with wavy inner and/or outer arcs. The waves are evenly distributed
+ * along the arc path (radial direction).
+ * 
+ * In the unfolded sector:
+ * - inner arc = top edge of lampshade (smaller radius)
+ * - outer arc = bottom edge of lampshade (larger radius)
+ * 
+ * Wave distribution: each wave occupies exactly (sectorAngle / waveCount) degrees,
+ * ensuring uniform distribution across the entire arc.
  */
 function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const lines: string[] = [];
@@ -203,6 +210,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const sectorAngleRad = result.sectorAngleRad;
   const waveCount = result.waveCount;
   const waveHeight = result.waveHeight;
+  const topWave = result.topWave;     // top edge = inner arc
+  const bottomWave = result.bottomWave; // bottom edge = outer arc
 
   // SECTION: HEADER
   lines.push("0");
@@ -215,7 +224,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   lines.push("1");
   lines.push("AC1009");
   
-  const maxExtent = outerR * 1.5;
+  const maxExtent = (outerR + waveHeight) * 1.5;
   lines.push("9");
   lines.push("$EXTMIN");
   lines.push("10");
@@ -249,53 +258,65 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const startAngleDeg = 270 - sectorAngleDeg / 2;
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
 
-  const numSegments = waveCount * 20; // 20 segments per wave for smooth curve
+  // Use enough segments for smooth curves
+  const numSegments = Math.max(waveCount * 20, 80);
 
-  // Draw outer wavy arc
-  // The wave oscillates in the radial direction along the arc
-  for (let i = 0; i < numSegments; i++) {
-    const t1 = i / numSegments;
-    const t2 = (i + 1) / numSegments;
-    
-    const angle1 = startAngleRad + t1 * sectorAngleRad;
-    const angle2 = startAngleRad + t2 * sectorAngleRad;
-    
-    // Wave offset in radial direction
-    const waveOffset1 = waveHeight * Math.sin(t1 * waveCount * 2 * Math.PI);
-    const waveOffset2 = waveHeight * Math.sin(t2 * waveCount * 2 * Math.PI);
-    
-    const r1 = outerR + waveOffset1;
-    const r2 = outerR + waveOffset2;
-    
-    const x1 = r1 * Math.cos(angle1);
-    const y1 = r1 * Math.sin(angle1);
-    const x2 = r2 * Math.cos(angle2);
-    const y2 = r2 * Math.sin(angle2);
-    
-    addLine(lines, x1, y1, x2, y2);
+  // Draw outer arc (bottom edge of lampshade)
+  if (bottomWave) {
+    // Wavy outer arc - waves evenly distributed
+    for (let i = 0; i < numSegments; i++) {
+      const t1 = i / numSegments;
+      const t2 = (i + 1) / numSegments;
+      
+      const angle1 = startAngleRad + t1 * sectorAngleRad;
+      const angle2 = startAngleRad + t2 * sectorAngleRad;
+      
+      // Wave offset: use full cycles so waves are evenly distributed
+      // sin(t * waveCount * 2π) gives exactly waveCount complete waves from t=0 to t=1
+      const waveOffset1 = waveHeight * Math.sin(t1 * waveCount * 2 * Math.PI);
+      const waveOffset2 = waveHeight * Math.sin(t2 * waveCount * 2 * Math.PI);
+      
+      const r1 = outerR + waveOffset1;
+      const r2 = outerR + waveOffset2;
+      
+      const x1 = r1 * Math.cos(angle1);
+      const y1 = r1 * Math.sin(angle1);
+      const x2 = r2 * Math.cos(angle2);
+      const y2 = r2 * Math.sin(angle2);
+      
+      addLine(lines, x1, y1, x2, y2);
+    }
+  } else {
+    // Smooth outer arc (no waves)
+    addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw inner wavy arc
-  for (let i = 0; i < numSegments; i++) {
-    const t1 = i / numSegments;
-    const t2 = (i + 1) / numSegments;
-    
-    const angle1 = startAngleRad + t1 * sectorAngleRad;
-    const angle2 = startAngleRad + t2 * sectorAngleRad;
-    
-    // Wave offset in radial direction (same phase as outer)
-    const waveOffset1 = waveHeight * Math.sin(t1 * waveCount * 2 * Math.PI);
-    const waveOffset2 = waveHeight * Math.sin(t2 * waveCount * 2 * Math.PI);
-    
-    const r1 = innerR + waveOffset1;
-    const r2 = innerR + waveOffset2;
-    
-    const x1 = r1 * Math.cos(angle1);
-    const y1 = r1 * Math.sin(angle1);
-    const x2 = r2 * Math.cos(angle2);
-    const y2 = r2 * Math.sin(angle2);
-    
-    addLine(lines, x1, y1, x2, y2);
+  // Draw inner arc (top edge of lampshade)
+  if (topWave) {
+    // Wavy inner arc - waves evenly distributed
+    for (let i = 0; i < numSegments; i++) {
+      const t1 = i / numSegments;
+      const t2 = (i + 1) / numSegments;
+      
+      const angle1 = startAngleRad + t1 * sectorAngleRad;
+      const angle2 = startAngleRad + t2 * sectorAngleRad;
+      
+      const waveOffset1 = waveHeight * Math.sin(t1 * waveCount * 2 * Math.PI);
+      const waveOffset2 = waveHeight * Math.sin(t2 * waveCount * 2 * Math.PI);
+      
+      const r1 = innerR + waveOffset1;
+      const r2 = innerR + waveOffset2;
+      
+      const x1 = r1 * Math.cos(angle1);
+      const y1 = r1 * Math.sin(angle1);
+      const x2 = r2 * Math.cos(angle2);
+      const y2 = r2 * Math.sin(angle2);
+      
+      addLine(lines, x1, y1, x2, y2);
+    }
+  } else {
+    // Smooth inner arc (no waves)
+    addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
   // Draw left radial line (from inner to outer at start angle)
@@ -314,7 +335,10 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   addLine(lines, rightOuterX, rightOuterY, rightInnerX, rightInnerY);
 
   // Add text annotation
-  addText(lines, 0, -(outerR + 50), 20, `Waveform Lampshade - ${waveCount} Waves`);
+  const waveInfo = [];
+  if (topWave) waveInfo.push('top');
+  if (bottomWave) waveInfo.push('bottom');
+  addText(lines, 0, -(outerR + 50), 20, `Waveform Lampshade - ${waveCount} Waves (${waveInfo.join('+')})`);
   addText(lines, 0, -(outerR + 80), 15, `R=${outerR.toFixed(1)} r=${innerR.toFixed(1)} θ=${sectorAngleDeg.toFixed(1)}°`);
 
   lines.push("0");

@@ -5,16 +5,22 @@
  * Mathematical Principle:
  * A waveform lampshade is essentially a conical lampshade with wavy edges.
  * The unfolded pattern is an annulus sector (same as conical), but with
- * the inner and outer arcs replaced by wavy curves along the arc path.
+ * the inner and/or outer arcs replaced by wavy curves along the arc path.
+ * 
+ * The user can choose which edges have waves:
+ * - topWave: whether the top (inner) edge has waves
+ * - bottomWave: whether the bottom (outer) edge has waves
  */
 
 export interface WaveformLampshadeInput {
   topDiameter: number;        // Top opening diameter (mm)
   bottomDiameter: number;     // Bottom opening diameter (mm)
   slantHeight: number;        // Slant height from top to bottom edge (mm)
-  waveCount: number;          // Number of waves (2-8)
+  waveCount: number;          // Number of waves (2-20)
   waveHeight: number;         // Height of each wave (mm)
   waveType: "sine" | "cosine"; // Type of wave
+  topWave: boolean;           // Whether top edge has waves
+  bottomWave: boolean;        // Whether bottom edge has waves
 }
 
 export interface WaveformLampshadeResult {
@@ -25,6 +31,8 @@ export interface WaveformLampshadeResult {
   waveCount: number;
   waveHeight: number;
   waveType: string;
+  topWave: boolean;
+  bottomWave: boolean;
   
   // Derived measurements
   topRadius: number;
@@ -73,6 +81,8 @@ export function calculateWaveformLampshade(
     waveCount: input.waveCount,
     waveHeight: input.waveHeight,
     waveType: input.waveType,
+    topWave: input.topWave,
+    bottomWave: input.bottomWave,
     topRadius: input.topDiameter / 2,
     bottomRadius: input.bottomDiameter / 2,
     topCircumference: 0,
@@ -107,15 +117,21 @@ export function calculateWaveformLampshade(
     return result;
   }
 
-  if (input.waveCount < 2 || input.waveCount > 8) {
+  if (input.waveCount < 2 || input.waveCount > 20) {
     result.isValid = false;
-    result.validationMessage = "波数必须在 2-8 之间";
+    result.validationMessage = "波数必须在 2-20 之间";
     return result;
   }
 
   if (input.waveHeight < 0) {
     result.isValid = false;
     result.validationMessage = "波高必须大于等于 0";
+    return result;
+  }
+
+  if (!input.topWave && !input.bottomWave) {
+    result.isValid = false;
+    result.validationMessage = "至少需要选择一个边有波浪";
     return result;
   }
 
@@ -149,13 +165,17 @@ export function calculateWaveformLampshade(
   
   // Approximate arc length for sinusoidal wave
   const arcLengthFactor = Math.sqrt(1 + Math.pow(waveAmplitude * waveFrequency, 2));
-  result.unfoldedTopArcLength = result.topCircumference * arcLengthFactor;
+  result.unfoldedTopArcLength = input.topWave
+    ? result.topCircumference * arcLengthFactor
+    : result.topCircumference;
   
   // Similar calculation for bottom
   const bottomWaveLength = result.bottomCircumference / input.waveCount;
   const bottomWaveFrequency = (2 * Math.PI) / bottomWaveLength;
   const bottomArcLengthFactor = Math.sqrt(1 + Math.pow(waveAmplitude * bottomWaveFrequency, 2));
-  result.unfoldedBottomArcLength = result.bottomCircumference * bottomArcLengthFactor;
+  result.unfoldedBottomArcLength = input.bottomWave
+    ? result.bottomCircumference * bottomArcLengthFactor
+    : result.bottomCircumference;
 
   // Calculate actual slant height (including wave distortion in vertical direction)
   result.actualSlantHeight = input.slantHeight > 0
@@ -164,8 +184,8 @@ export function calculateWaveformLampshade(
 
   // Material dimensions
   const halfAngle = result.sectorAngleRad / 2;
-  result.materialWidth = 2 * result.outerRadius * Math.sin(halfAngle);
-  result.materialHeight = result.outerRadius * (1 + Math.cos(halfAngle));
+  result.materialWidth = 2 * (result.outerRadius + waveAmplitude) * Math.sin(halfAngle);
+  result.materialHeight = (result.outerRadius + waveAmplitude) * (1 + Math.cos(halfAngle));
 
   // Calculate surface area (approximate as cone with wave correction)
   const avgRadius = (result.topRadius + result.bottomRadius) / 2;
@@ -195,16 +215,18 @@ export function generateWaveformUnfoldedPath(
 
   let pathData = `M 0 0`;
 
-  // Top edge with waves
-  const topSegments = waveCount * 4; // 4 points per wave for smooth curve
+  // Top edge with waves (if enabled)
+  const topSegments = waveCount * 4;
   for (let i = 1; i <= topSegments; i++) {
     const x = (i / topSegments) * width;
     let y = 0;
 
-    if (waveType === "sine") {
-      y = waveHeight * Math.sin((i / topSegments) * waveCount * Math.PI * 2);
-    } else {
-      y = waveHeight * Math.cos((i / topSegments) * waveCount * Math.PI * 2);
+    if (result.topWave) {
+      if (waveType === "sine") {
+        y = waveHeight * Math.sin((i / topSegments) * waveCount * Math.PI * 2);
+      } else {
+        y = waveHeight * Math.cos((i / topSegments) * waveCount * Math.PI * 2);
+      }
     }
 
     pathData += ` L ${x} ${y}`;
@@ -213,15 +235,17 @@ export function generateWaveformUnfoldedPath(
   // Right edge
   pathData += ` L ${width} ${height}`;
 
-  // Bottom edge with waves (reversed)
+  // Bottom edge with waves (reversed, if enabled)
   for (let i = topSegments; i >= 1; i--) {
     const x = (i / topSegments) * width;
     let y = height;
 
-    if (waveType === "sine") {
-      y = height - waveHeight * Math.sin((i / topSegments) * waveCount * Math.PI * 2);
-    } else {
-      y = height - waveHeight * Math.cos((i / topSegments) * waveCount * Math.PI * 2);
+    if (result.bottomWave) {
+      if (waveType === "sine") {
+        y = height - waveHeight * Math.sin((i / topSegments) * waveCount * Math.PI * 2);
+      } else {
+        y = height - waveHeight * Math.cos((i / topSegments) * waveCount * Math.PI * 2);
+      }
     }
 
     pathData += ` L ${x} ${y}`;
