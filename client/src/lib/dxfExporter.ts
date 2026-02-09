@@ -251,22 +251,6 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
   lines.push("$ACADVER");
   lines.push("1");
   lines.push("AC1009");
-  
-  const maxExtent = 500;
-  lines.push("9");
-  lines.push("$EXTMIN");
-  lines.push("10");
-  lines.push(String(-maxExtent));
-  lines.push("20");
-  lines.push(String(-maxExtent));
-  
-  lines.push("9");
-  lines.push("$EXTMAX");
-  lines.push("10");
-  lines.push(String(maxExtent));
-  lines.push("20");
-  lines.push(String(maxExtent));
-  
   lines.push("0");
   lines.push("ENDSEC");
 
@@ -275,8 +259,6 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
   lines.push("SECTION");
   lines.push("2");
   lines.push("TABLES");
-
-  // LAYER table
   lines.push("0");
   lines.push("TABLE");
   lines.push("2");
@@ -327,86 +309,97 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
   lines.push("2");
   lines.push("ENTITIES");
 
-  // Draw multiple trapezoids for each side of the polygon
-  const sides = result.sides;
-  const topRadius = result.topDiameter / 2;
-  const bottomRadius = result.bottomDiameter / 2;
-  const slantHeight = result.slantHeight;
-  
-  // Calculate the angle for each trapezoid
-  const trapezoidAngle = 360 / sides;
-  const trapezoidWidth = 2 * Math.PI * topRadius / sides;
-  const bottomTrapezoidWidth = 2 * Math.PI * bottomRadius / sides;
+  // Draw the complete unfolded pattern as a sector ring
+  const outerR = result.singleFaceOuterRadius;
+  const innerR = result.singleFaceInnerRadius;
+  const singleAngle = (result.singleFaceSectorAngle * Math.PI) / 180;
+  const totalAngle = (result.totalSectorAngle * Math.PI) / 180;
 
-  // Draw trapezoids arranged horizontally
-  let xOffset = -trapezoidWidth * sides / 2;
-  
-  for (let i = 0; i < sides; i++) {
-    const x1 = xOffset;
-    const x2 = xOffset + trapezoidWidth;
-    const x3 = xOffset + bottomTrapezoidWidth + (trapezoidWidth - bottomTrapezoidWidth) / 2;
-    const x4 = xOffset + (trapezoidWidth - bottomTrapezoidWidth) / 2;
-    
-    const y1 = 0;
-    const y2 = slantHeight;
+  // Draw outer arc
+  lines.push("0");
+  lines.push("ARC");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push("0");
+  lines.push("20");
+  lines.push("0");
+  lines.push("40");
+  lines.push(String(outerR));
+  lines.push("50");
+  lines.push("0");
+  lines.push("51");
+  lines.push(String((totalAngle * 180) / Math.PI));
 
-    // Top edge
+  // Draw inner arc
+  lines.push("0");
+  lines.push("ARC");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push("0");
+  lines.push("20");
+  lines.push("0");
+  lines.push("40");
+  lines.push(String(innerR));
+  lines.push("50");
+  lines.push("0");
+  lines.push("51");
+  lines.push(String((totalAngle * 180) / Math.PI));
+
+  // Draw left radial line
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(outerR));
+  lines.push("20");
+  lines.push("0");
+  lines.push("11");
+  lines.push(String(innerR));
+  lines.push("21");
+  lines.push("0");
+
+  // Draw right radial line
+  const outerArcEndX = outerR * Math.cos(totalAngle);
+  const outerArcEndY = outerR * Math.sin(totalAngle);
+  const innerArcEndX = innerR * Math.cos(totalAngle);
+  const innerArcEndY = innerR * Math.sin(totalAngle);
+
+  lines.push("0");
+  lines.push("LINE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(outerArcEndX));
+  lines.push("20");
+  lines.push(String(outerArcEndY));
+  lines.push("11");
+  lines.push(String(innerArcEndX));
+  lines.push("21");
+  lines.push(String(innerArcEndY));
+
+  // Draw dividing lines for each face
+  for (let i = 1; i < result.sides; i++) {
+    const angle = i * singleAngle;
+    const outerX = outerR * Math.cos(angle);
+    const outerY = outerR * Math.sin(angle);
+    const innerX = innerR * Math.cos(angle);
+    const innerY = innerR * Math.sin(angle);
+
     lines.push("0");
     lines.push("LINE");
     lines.push("8");
     lines.push("OUTLINE");
     lines.push("10");
-    lines.push(String(x1));
+    lines.push(String(outerX));
     lines.push("20");
-    lines.push(String(y1));
+    lines.push(String(outerY));
     lines.push("11");
-    lines.push(String(x2));
+    lines.push(String(innerX));
     lines.push("21");
-    lines.push(String(y1));
-
-    // Right edge
-    lines.push("0");
-    lines.push("LINE");
-    lines.push("8");
-    lines.push("OUTLINE");
-    lines.push("10");
-    lines.push(String(x2));
-    lines.push("20");
-    lines.push(String(y1));
-    lines.push("11");
-    lines.push(String(x3));
-    lines.push("21");
-    lines.push(String(y2));
-
-    // Bottom edge
-    lines.push("0");
-    lines.push("LINE");
-    lines.push("8");
-    lines.push("OUTLINE");
-    lines.push("10");
-    lines.push(String(x3));
-    lines.push("20");
-    lines.push(String(y2));
-    lines.push("11");
-    lines.push(String(x4));
-    lines.push("21");
-    lines.push(String(y2));
-
-    // Left edge
-    lines.push("0");
-    lines.push("LINE");
-    lines.push("8");
-    lines.push("OUTLINE");
-    lines.push("10");
-    lines.push(String(x4));
-    lines.push("20");
-    lines.push(String(y2));
-    lines.push("11");
-    lines.push(String(x1));
-    lines.push("21");
-    lines.push(String(y1));
-
-    xOffset += trapezoidWidth;
+    lines.push(String(innerY));
   }
 
   // Add text annotation
@@ -421,7 +414,7 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
   lines.push("40");
   lines.push("20");
   lines.push("1");
-  lines.push(`Polygon Lampshade - ${sides} Sides`);
+  lines.push(`Polygon Lampshade - ${result.sides} Sides`);
 
   lines.push("0");
   lines.push("ENDSEC");
@@ -434,6 +427,8 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
 }
 
 /**
+ * Generate DXF content for waveform lampshade
+ *//**
  * Generate DXF content for waveform lampshade
  */
 function generateWaveformDXF(result: WaveformLampshadeResult): string {

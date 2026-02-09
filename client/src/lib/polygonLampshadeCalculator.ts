@@ -1,6 +1,9 @@
 /**
  * Polygon Lampshade Calculator
  * Calculates unfolding patterns for polygon-shaped lampshades (3-12 sides)
+ * 
+ * Key insight: A polygon lampshade is essentially multiple cone frustums arranged in a circle.
+ * Each face unfolds as a curved trapezoid (sector of an annulus).
  */
 
 export interface PolygonLampshadeInput {
@@ -27,14 +30,17 @@ export interface PolygonLampshadeResult {
   topCentralAngle: number;    // Central angle for each side at top (degrees)
   bottomCentralAngle: number; // Central angle for each side at bottom (degrees)
   
-  // Unfolding calculations for one side
-  unfoldedTopLength: number;  // Unfolded length at top edge
-  unfoldedBottomLength: number; // Unfolded length at bottom edge
-  unfoldedSlantHeight: number; // Unfolded slant height (same as input slant height)
+  // Unfolding calculations - for the ENTIRE unfolded pattern
+  totalUnfoldedRadius: number;    // Outer radius of the unfolded pattern
+  totalUnfoldedInnerRadius: number; // Inner radius of the unfolded pattern
+  totalSectorAngle: number;       // Total sector angle of the unfolded pattern (degrees)
+  
+  // Single face unfolding
+  singleFaceOuterRadius: number;  // Outer radius for one face
+  singleFaceInnerRadius: number;  // Inner radius for one face
+  singleFaceSectorAngle: number;  // Sector angle for one face (degrees)
   
   // Material requirements
-  materialWidth: number;      // Recommended material width
-  materialHeight: number;     // Recommended material height
   totalSurfaceArea: number;   // Total surface area of all sides
   
   // Validation
@@ -59,11 +65,12 @@ export function calculatePolygonLampshade(
     bottomSideLength: 0,
     topCentralAngle: 0,
     bottomCentralAngle: 0,
-    unfoldedTopLength: 0,
-    unfoldedBottomLength: 0,
-    unfoldedSlantHeight: input.slantHeight,
-    materialWidth: 0,
-    materialHeight: 0,
+    totalUnfoldedRadius: 0,
+    totalUnfoldedInnerRadius: 0,
+    totalSectorAngle: 0,
+    singleFaceOuterRadius: 0,
+    singleFaceInnerRadius: 0,
+    singleFaceSectorAngle: 0,
     totalSurfaceArea: 0,
     isValid: true,
     validationMessage: "",
@@ -88,7 +95,7 @@ export function calculatePolygonLampshade(
     return result;
   }
 
-  // Calculate central angle for each side
+  // Calculate central angle for each side (in the 3D shape)
   const centralAngle = 360 / input.sides;
   result.topCentralAngle = centralAngle;
   result.bottomCentralAngle = centralAngle;
@@ -101,75 +108,95 @@ export function calculatePolygonLampshade(
   result.topSideLength = 2 * result.topRadius * Math.sin(topAngleRad / 2);
   result.bottomSideLength = 2 * result.bottomRadius * Math.sin(bottomAngleRad / 2);
 
-  // For unfolding, we need to "unfold" the polygon into a flat pattern
-  // Each side becomes a trapezoid in the unfolded pattern
-  // The key is that the arc length at top and bottom must match the side lengths
-
-  // Calculate the radius from the apex to the top and bottom edges
-  // Using similar triangles: R_top / R_bottom = top_radius / bottom_radius
+  // Calculate the apex distance using similar triangles
+  // For a cone frustum: R_top / R_bottom = (apex_dist) / (apex_dist + slant_height)
   const radiusDiff = result.bottomRadius - result.topRadius;
-  const radiusDiffAbs = Math.abs(radiusDiff);
-  const verticalHeight = radiusDiffAbs > 0 
-    ? Math.sqrt(Math.pow(input.slantHeight, 2) - Math.pow(radiusDiffAbs, 2))
-    : input.slantHeight;
+  
+  let apexDistance = 0;
+  if (Math.abs(radiusDiff) > 0.001) {
+    apexDistance = (result.topRadius * input.slantHeight) / radiusDiff;
+  }
 
-  // Calculate apex distance (distance from apex to top circle)
-  const apexDistance =
-    radiusDiff > 0 ? (result.topRadius * input.slantHeight) / radiusDiff : 0;
+  // Total radius from apex to bottom edge
+  const totalOuterRadius = apexDistance + input.slantHeight;
+  const totalInnerRadius = apexDistance;
 
-  // Total slant height from apex to bottom
-  const totalSlantHeight = apexDistance + input.slantHeight;
+  // For the unfolded pattern, we need to calculate the sector angle
+  // The arc length at the top circle must match the chord length
+  // Arc length = topRadius * centralAngle (in radians)
+  // In the unfolded pattern, this becomes: innerRadius * sectorAngle
+  // Therefore: sectorAngle = (topRadius * centralAngle) / innerRadius
+  
+  const centralAngleRad = (centralAngle * Math.PI) / 180;
+  const topArcLength = result.topRadius * centralAngleRad;
+  
+  let singleFaceSectorAngleRad = 0;
+  if (totalInnerRadius > 0.001) {
+    singleFaceSectorAngleRad = topArcLength / totalInnerRadius;
+  } else {
+    // If apex is at the same location as top, use the central angle directly
+    singleFaceSectorAngleRad = centralAngleRad;
+  }
 
-  // For unfolding, the arc length becomes the chord length in the unfolded pattern
-  // The unfolded pattern is a trapezoid with:
-  // - Top edge = top side length
-  // - Bottom edge = bottom side length
-  // - Height = slant height
-  result.unfoldedTopLength = result.topSideLength;
-  result.unfoldedBottomLength = result.bottomSideLength;
+  result.singleFaceOuterRadius = totalOuterRadius;
+  result.singleFaceInnerRadius = totalInnerRadius;
+  result.singleFaceSectorAngle = (singleFaceSectorAngleRad * 180) / Math.PI;
+  
+  // Total unfolded pattern
+  result.totalUnfoldedRadius = totalOuterRadius;
+  result.totalUnfoldedInnerRadius = totalInnerRadius;
+  result.totalSectorAngle = result.singleFaceSectorAngle * input.sides;
 
-  // Material dimensions
-  result.materialWidth = Math.max(
-    result.unfoldedTopLength,
-    result.unfoldedBottomLength
-  ) * 1.1; // Add 10% margin
-  result.materialHeight = input.slantHeight * 1.1; // Add 10% margin
-
-  // Calculate total surface area (sum of all trapezoid areas)
-  const singleTrapezoidArea =
-    ((result.topSideLength + result.bottomSideLength) / 2) * input.slantHeight;
-  result.totalSurfaceArea = singleTrapezoidArea * input.sides;
+  // Calculate total surface area
+  // Each face is a trapezoid with curved edges
+  // Area ≈ average of top and bottom arc lengths * slant height
+  const topArcLengthFull = result.topSideLength;
+  const bottomArcLengthFull = result.bottomSideLength;
+  const singleFaceArea = ((topArcLengthFull + bottomArcLengthFull) / 2) * input.slantHeight;
+  result.totalSurfaceArea = singleFaceArea * input.sides;
 
   return result;
 }
 
 /**
- * Generate SVG path for one unfolded trapezoid side
+ * Generate SVG path for one unfolded curved trapezoid (sector)
  */
 export function generatePolygonUnfoldedPath(
   result: PolygonLampshadeResult
 ): string {
   if (!result.isValid) return "";
 
-  const width = result.unfoldedBottomLength;
-  const height = result.slantHeight;
-  const topWidth = result.unfoldedTopLength;
+  const outerR = result.singleFaceOuterRadius;
+  const innerR = result.singleFaceInnerRadius;
+  const angle = (result.singleFaceSectorAngle * Math.PI) / 180;
 
-  // Calculate the offset for centering the trapezoid
-  const offset = (width - topWidth) / 2;
-
-  // Create trapezoid path
+  // Create sector path (similar to cone unfolding)
   const points = [
-    [offset, 0], // Top-left
-    [offset + topWidth, 0], // Top-right
-    [width, height], // Bottom-right
-    [0, height], // Bottom-left
+    // Outer arc start
+    [outerR, 0],
+    // Outer arc end
+    [outerR * Math.cos(angle), outerR * Math.sin(angle)],
+    // Inner arc end
+    [innerR * Math.cos(angle), innerR * Math.sin(angle)],
+    // Inner arc start
+    [innerR, 0],
   ];
 
+  // Create path with arcs
   let pathData = `M ${points[0][0]} ${points[0][1]}`;
-  for (let i = 1; i < points.length; i++) {
-    pathData += ` L ${points[i][0]} ${points[i][1]}`;
-  }
+  
+  // Outer arc
+  const outerLargeArc = angle > Math.PI ? 1 : 0;
+  pathData += ` A ${outerR} ${outerR} 0 ${outerLargeArc} 1 ${points[1][0]} ${points[1][1]}`;
+  
+  // Line to inner arc end
+  pathData += ` L ${points[2][0]} ${points[2][1]}`;
+  
+  // Inner arc (reverse direction)
+  const innerLargeArc = angle > Math.PI ? 1 : 0;
+  pathData += ` A ${innerR} ${innerR} 0 ${innerLargeArc} 0 ${points[3][0]} ${points[3][1]}`;
+  
+  // Close path
   pathData += " Z";
 
   return pathData;
