@@ -10,14 +10,17 @@ interface LampshadeVisualizationProps {
 }
 
 /**
+ * Helper to determine result type.
+ * Must check waveCount first because WaveformLampshadeResult now also has outerRadius.
+ */
+function getResultType(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): 'waveform' | 'polygon' | 'conical' {
+  if ('waveCount' in result) return 'waveform';
+  if ('sides' in result) return 'polygon';
+  return 'conical';
+}
+
+/**
  * LampshadeVisualization Component
- * 
- * Design Philosophy: Modern Minimalist
- * - Clean SVG visualizations
- * - Responsive sizing
- * - Clear visual distinction between 3D and unfolded views
- * - Subtle styling with focus on clarity
- * - Supports conical, polygonal, and waveform lampshades
  */
 export function LampshadeVisualization({
   result,
@@ -61,36 +64,33 @@ export function LampshadeVisualization({
   );
 }
 
-/**
- * Render 3D side view of the lampshade
- */
 function render3DView(svg: SVGSVGElement, result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult) {
-  // Check if it's a conical lampshade
-  if ('outerRadius' in result) {
-    render3DViewConical(svg, result as CalculationResult);
-  } else if ('sides' in result) {
-    render3DViewPolygonal(svg, result as PolygonLampshadeResult);
-  } else if ('waveCount' in result) {
-    render3DViewWaveform(svg, result as WaveformLampshadeResult);
-  }
+  const type = getResultType(result);
+  if (type === 'conical') render3DViewConical(svg, result as CalculationResult);
+  else if (type === 'polygon') render3DViewPolygonal(svg, result as PolygonLampshadeResult);
+  else render3DViewWaveform(svg, result as WaveformLampshadeResult);
 }
 
-/**
- * Render 3D view for conical lampshade
- */
+function renderUnfoldedView(svg: SVGSVGElement, result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult) {
+  const type = getResultType(result);
+  if (type === 'conical') renderUnfoldedViewConical(svg, result as CalculationResult);
+  else if (type === 'polygon') renderUnfoldedViewPolygonal(svg, result as PolygonLampshadeResult);
+  else renderUnfoldedViewWaveform(svg, result as WaveformLampshadeResult);
+}
+
+// ==================== 3D Views ====================
+
 function render3DViewConical(svg: SVGSVGElement, result: CalculationResult) {
   const width = 400;
   const height = 400;
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Calculate vertical height from slant height and radius difference
   const radiusDiff = result.bottomRadius - result.topRadius;
   const verticalHeight = Math.sqrt(
     Math.pow(result.slantHeight, 2) - Math.pow(radiusDiff, 2)
   );
 
-  // Scale factor to fit the lampshade in the view
   const maxDim = Math.max(result.bottomDiameter, verticalHeight);
   const scale = Math.min(width, height) / (maxDim + 100);
 
@@ -98,10 +98,8 @@ function render3DViewConical(svg: SVGSVGElement, result: CalculationResult) {
   const bottomR = result.bottomRadius * scale;
   const h = verticalHeight * scale;
 
-  // Draw background grid
   drawGrid(svg, width, height);
 
-  // Draw the lampshade profile (side view)
   const topLeftX = centerX - topR;
   const topRightX = centerX + topR;
   const bottomLeftX = centerX - bottomR;
@@ -109,131 +107,37 @@ function render3DViewConical(svg: SVGSVGElement, result: CalculationResult) {
   const topY = centerY - h / 2;
   const bottomY = centerY + h / 2;
 
-  // Draw the outline
-  const outlineGroup = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "g"
-  );
+  const outlineGroup = createSvgElement("g");
 
-  // Left edge
-  const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  leftLine.setAttribute("x1", String(topLeftX));
-  leftLine.setAttribute("y1", String(topY));
-  leftLine.setAttribute("x2", String(bottomLeftX));
-  leftLine.setAttribute("y2", String(bottomY));
-  leftLine.setAttribute("stroke", "#0d47a1");
-  leftLine.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(leftLine);
-
-  // Right edge
-  const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  rightLine.setAttribute("x1", String(topRightX));
-  rightLine.setAttribute("y1", String(topY));
-  rightLine.setAttribute("x2", String(bottomRightX));
-  rightLine.setAttribute("y2", String(bottomY));
-  rightLine.setAttribute("stroke", "#0d47a1");
-  rightLine.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(rightLine);
-
-  // Top ellipse (simplified as line)
-  const topEllipse = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "line"
-  );
-  topEllipse.setAttribute("x1", String(topLeftX));
-  topEllipse.setAttribute("y1", String(topY));
-  topEllipse.setAttribute("x2", String(topRightX));
-  topEllipse.setAttribute("y2", String(topY));
-  topEllipse.setAttribute("stroke", "#0d47a1");
-  topEllipse.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(topEllipse);
-
-  // Bottom ellipse (simplified as line)
-  const bottomEllipse = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "line"
-  );
-  bottomEllipse.setAttribute("x1", String(bottomLeftX));
-  bottomEllipse.setAttribute("y1", String(bottomY));
-  bottomEllipse.setAttribute("x2", String(bottomRightX));
-  bottomEllipse.setAttribute("y2", String(bottomY));
-  bottomEllipse.setAttribute("stroke", "#0d47a1");
-  bottomEllipse.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(bottomEllipse);
+  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
+  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
+  appendLine(outlineGroup, topLeftX, topY, topRightX, topY, "#0d47a1", 2);
+  appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, "#0d47a1", 2);
 
   svg.appendChild(outlineGroup);
 
-  // Add dimension annotations
-  // Draw slant height annotation along the left slant edge
-  const slantLength = Math.sqrt(
-    Math.pow(bottomLeftX - topLeftX, 2) + Math.pow(bottomY - topY, 2)
-  );
   const midX = (topLeftX + bottomLeftX) / 2;
   const midY = (topY + bottomY) / 2;
-  
-  // Draw measurement line along the slant edge
-  const measureLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  measureLine.setAttribute("x1", String(topLeftX - 40));
-  measureLine.setAttribute("y1", String(topY));
-  measureLine.setAttribute("x2", String(bottomLeftX - 40));
-  measureLine.setAttribute("y2", String(bottomY));
-  measureLine.setAttribute("stroke", "#ff6b35");
-  measureLine.setAttribute("stroke-width", "1");
-  measureLine.setAttribute("stroke-dasharray", "4,4");
-  svg.appendChild(measureLine);
 
-  // Add text label for slant height
-  const angle = Math.atan2(bottomY - topY, bottomLeftX - topLeftX);
-  const textX = midX - 50;
-  const textY = midY;
-  
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", String(textX));
-  text.setAttribute("y", String(textY));
-  text.setAttribute("font-size", "12");
-  text.setAttribute("fill", "#ff6b35");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("dominant-baseline", "middle");
-  text.textContent = `H: ${result.slantHeight.toFixed(0)}mm`;
-  svg.appendChild(text);
+  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, "#ff6b35", 1, "4,4");
 
-  addDimensionLine(
-    svg,
-    topLeftX,
-    topY - 30,
-    topRightX,
-    topY - 30,
-    `Ø${result.topDiameter.toFixed(0)}mm`,
-    "top"
-  );
+  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, "#ff6b35");
 
-  addDimensionLine(
-    svg,
-    bottomLeftX,
-    bottomY + 30,
-    bottomRightX,
-    bottomY + 30,
-    `Ø${result.bottomDiameter.toFixed(0)}mm`,
-    "bottom"
-  );
+  addDimensionLine(svg, topLeftX, topY - 30, topRightX, topY - 30, `Ø${result.topDiameter.toFixed(0)}mm`, "top");
+  addDimensionLine(svg, bottomLeftX, bottomY + 30, bottomRightX, bottomY + 30, `Ø${result.bottomDiameter.toFixed(0)}mm`, "bottom");
 }
 
-/**
- * Render 3D view for polygonal lampshade
- */
 function render3DViewPolygonal(svg: SVGSVGElement, result: PolygonLampshadeResult) {
   const width = 400;
   const height = 400;
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Calculate vertical height from slant height and radius difference
   const radiusDiff = result.bottomRadius - result.topRadius;
   const verticalHeight = Math.sqrt(
     Math.pow(result.slantHeight, 2) - Math.pow(radiusDiff, 2)
   );
 
-  // Scale factor to fit the lampshade in the view
   const maxDim = Math.max(result.bottomDiameter, verticalHeight);
   const scale = Math.min(width, height) / (maxDim + 100);
 
@@ -241,10 +145,8 @@ function render3DViewPolygonal(svg: SVGSVGElement, result: PolygonLampshadeResul
   const bottomR = result.bottomRadius * scale;
   const h = verticalHeight * scale;
 
-  // Draw background grid
   drawGrid(svg, width, height);
 
-  // Draw the polygonal lampshade profile (side view)
   const topLeftX = centerX - topR;
   const topRightX = centerX + topR;
   const bottomLeftX = centerX - bottomR;
@@ -252,126 +154,36 @@ function render3DViewPolygonal(svg: SVGSVGElement, result: PolygonLampshadeResul
   const topY = centerY - h / 2;
   const bottomY = centerY + h / 2;
 
-  // Draw the outline
-  const outlineGroup = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "g"
-  );
+  const outlineGroup = createSvgElement("g");
 
-  // Left edge
-  const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  leftLine.setAttribute("x1", String(topLeftX));
-  leftLine.setAttribute("y1", String(topY));
-  leftLine.setAttribute("x2", String(bottomLeftX));
-  leftLine.setAttribute("y2", String(bottomY));
-  leftLine.setAttribute("stroke", "#0d47a1");
-  leftLine.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(leftLine);
-
-  // Right edge
-  const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  rightLine.setAttribute("x1", String(topRightX));
-  rightLine.setAttribute("y1", String(topY));
-  rightLine.setAttribute("x2", String(bottomRightX));
-  rightLine.setAttribute("y2", String(bottomY));
-  rightLine.setAttribute("stroke", "#0d47a1");
-  rightLine.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(rightLine);
-
-  // Top edge
-  const topEdge = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "line"
-  );
-  topEdge.setAttribute("x1", String(topLeftX));
-  topEdge.setAttribute("y1", String(topY));
-  topEdge.setAttribute("x2", String(topRightX));
-  topEdge.setAttribute("y2", String(topY));
-  topEdge.setAttribute("stroke", "#0d47a1");
-  topEdge.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(topEdge);
-
-  // Bottom edge
-  const bottomEdge = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "line"
-  );
-  bottomEdge.setAttribute("x1", String(bottomLeftX));
-  bottomEdge.setAttribute("y1", String(bottomY));
-  bottomEdge.setAttribute("x2", String(bottomRightX));
-  bottomEdge.setAttribute("y2", String(bottomY));
-  bottomEdge.setAttribute("stroke", "#0d47a1");
-  bottomEdge.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(bottomEdge);
+  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
+  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
+  appendLine(outlineGroup, topLeftX, topY, topRightX, topY, "#0d47a1", 2);
+  appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, "#0d47a1", 2);
 
   svg.appendChild(outlineGroup);
 
-  // Add dimension annotations
   const midX = (topLeftX + bottomLeftX) / 2;
   const midY = (topY + bottomY) / 2;
-  
-  // Draw measurement line along the slant edge
-  const measureLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  measureLine.setAttribute("x1", String(topLeftX - 40));
-  measureLine.setAttribute("y1", String(topY));
-  measureLine.setAttribute("x2", String(bottomLeftX - 40));
-  measureLine.setAttribute("y2", String(bottomY));
-  measureLine.setAttribute("stroke", "#ff6b35");
-  measureLine.setAttribute("stroke-width", "1");
-  measureLine.setAttribute("stroke-dasharray", "4,4");
-  svg.appendChild(measureLine);
 
-  // Add text label for slant height
-  const textX = midX - 50;
-  const textY = midY;
-  
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", String(textX));
-  text.setAttribute("y", String(textY));
-  text.setAttribute("font-size", "12");
-  text.setAttribute("fill", "#ff6b35");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("dominant-baseline", "middle");
-  text.textContent = `H: ${result.slantHeight.toFixed(0)}mm`;
-  svg.appendChild(text);
+  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, "#ff6b35", 1, "4,4");
+  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, "#ff6b35");
 
-  addDimensionLine(
-    svg,
-    topLeftX,
-    topY - 30,
-    topRightX,
-    topY - 30,
-    `Ø${result.topDiameter.toFixed(0)}mm (${result.sides}边)`,
-    "top"
-  );
-
-  addDimensionLine(
-    svg,
-    bottomLeftX,
-    bottomY + 30,
-    bottomRightX,
-    bottomY + 30,
-    `Ø${result.bottomDiameter.toFixed(0)}mm`,
-    "bottom"
-  );
+  addDimensionLine(svg, topLeftX, topY - 30, topRightX, topY - 30, `Ø${result.topDiameter.toFixed(0)}mm (${result.sides}边)`, "top");
+  addDimensionLine(svg, bottomLeftX, bottomY + 30, bottomRightX, bottomY + 30, `Ø${result.bottomDiameter.toFixed(0)}mm`, "bottom");
 }
 
-/**
- * Render 3D view for waveform lampshade
- */
 function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResult) {
   const width = 400;
   const height = 400;
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Calculate vertical height from slant height and radius difference
   const radiusDiff = result.bottomRadius - result.topRadius;
   const verticalHeight = Math.sqrt(
     Math.pow(result.slantHeight, 2) - Math.pow(radiusDiff, 2)
   );
 
-  // Scale factor to fit the lampshade in the view
   const maxDim = Math.max(result.bottomDiameter, verticalHeight);
   const scale = Math.min(width, height) / (maxDim + 100);
 
@@ -379,10 +191,8 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
   const bottomR = result.bottomRadius * scale;
   const h = verticalHeight * scale;
 
-  // Draw background grid
   drawGrid(svg, width, height);
 
-  // Draw the waveform lampshade profile (side view)
   const topLeftX = centerX - topR;
   const topRightX = centerX + topR;
   const bottomLeftX = centerX - bottomR;
@@ -390,35 +200,14 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
   const topY = centerY - h / 2;
   const bottomY = centerY + h / 2;
 
-  // Draw the outline
-  const outlineGroup = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "g"
-  );
+  const outlineGroup = createSvgElement("g");
 
-  // Left edge
-  const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  leftLine.setAttribute("x1", String(topLeftX));
-  leftLine.setAttribute("y1", String(topY));
-  leftLine.setAttribute("x2", String(bottomLeftX));
-  leftLine.setAttribute("y2", String(bottomY));
-  leftLine.setAttribute("stroke", "#0d47a1");
-  leftLine.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(leftLine);
-
-  // Right edge
-  const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  rightLine.setAttribute("x1", String(topRightX));
-  rightLine.setAttribute("y1", String(topY));
-  rightLine.setAttribute("x2", String(bottomRightX));
-  rightLine.setAttribute("y2", String(bottomY));
-  rightLine.setAttribute("stroke", "#0d47a1");
-  rightLine.setAttribute("stroke-width", "2");
-  outlineGroup.appendChild(rightLine);
+  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
+  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
 
   // Top edge (wavy)
-  const topWavePath = generateWavePath(topLeftX, topY, topRightX, topY, result.waveCount || 3);
-  const topWave = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const topWavePath = generateSineWavePath(topLeftX, topY, topRightX, topY, result.waveCount || 3, 8);
+  const topWave = createSvgElement("path");
   topWave.setAttribute("d", topWavePath);
   topWave.setAttribute("stroke", "#0d47a1");
   topWave.setAttribute("stroke-width", "2");
@@ -426,8 +215,8 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
   outlineGroup.appendChild(topWave);
 
   // Bottom edge (wavy)
-  const bottomWavePath = generateWavePath(bottomLeftX, bottomY, bottomRightX, bottomY, result.waveCount || 3);
-  const bottomWave = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const bottomWavePath = generateSineWavePath(bottomLeftX, bottomY, bottomRightX, bottomY, result.waveCount || 3, 8);
+  const bottomWave = createSvgElement("path");
   bottomWave.setAttribute("d", bottomWavePath);
   bottomWave.setAttribute("stroke", "#0d47a1");
   bottomWave.setAttribute("stroke-width", "2");
@@ -436,80 +225,24 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
 
   svg.appendChild(outlineGroup);
 
-  // Add dimension annotations
   const midX = (topLeftX + bottomLeftX) / 2;
   const midY = (topY + bottomY) / 2;
-  
-  // Draw measurement line along the slant edge
-  const measureLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  measureLine.setAttribute("x1", String(topLeftX - 40));
-  measureLine.setAttribute("y1", String(topY));
-  measureLine.setAttribute("x2", String(bottomLeftX - 40));
-  measureLine.setAttribute("y2", String(bottomY));
-  measureLine.setAttribute("stroke", "#ff6b35");
-  measureLine.setAttribute("stroke-width", "1");
-  measureLine.setAttribute("stroke-dasharray", "4,4");
-  svg.appendChild(measureLine);
 
-  // Add text label for slant height
-  const textX = midX - 50;
-  const textY = midY;
-  
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", String(textX));
-  text.setAttribute("y", String(textY));
-  text.setAttribute("font-size", "12");
-  text.setAttribute("fill", "#ff6b35");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("dominant-baseline", "middle");
-  text.textContent = `H: ${result.slantHeight.toFixed(0)}mm`;
-  svg.appendChild(text);
+  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, "#ff6b35", 1, "4,4");
+  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, "#ff6b35");
 
-  addDimensionLine(
-    svg,
-    topLeftX,
-    topY - 30,
-    topRightX,
-    topY - 30,
-    `Ø${result.topDiameter.toFixed(0)}mm`,
-    "top"
-  );
-
-  addDimensionLine(
-    svg,
-    bottomLeftX,
-    bottomY + 30,
-    bottomRightX,
-    bottomY + 30,
-    `Ø${result.bottomDiameter.toFixed(0)}mm`,
-    "bottom"
-  );
+  addDimensionLine(svg, topLeftX, topY - 30, topRightX, topY - 30, `Ø${result.topDiameter.toFixed(0)}mm`, "top");
+  addDimensionLine(svg, bottomLeftX, bottomY + 30, bottomRightX, bottomY + 30, `Ø${result.bottomDiameter.toFixed(0)}mm`, "bottom");
 }
 
-/**
- * Render unfolded pattern view
- */
-function renderUnfoldedView(svg: SVGSVGElement, result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult) {
-  // Check if it's a conical lampshade
-  if ('outerRadius' in result) {
-    renderUnfoldedViewConical(svg, result as CalculationResult);
-  } else if ('sides' in result) {
-    renderUnfoldedViewPolygonal(svg, result as PolygonLampshadeResult);
-  } else if ('waveCount' in result) {
-    renderUnfoldedViewWaveform(svg, result as WaveformLampshadeResult);
-  }
-}
+// ==================== Unfolded Views ====================
 
-/**
- * Render unfolded pattern view - Sector Ring (Annulus Sector) for conical lampshade
- */
 function renderUnfoldedViewConical(svg: SVGSVGElement, result: CalculationResult) {
   const width = 400;
   const height = 400;
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Scale to fit the unfolded pattern
   const maxRadius = result.outerRadius;
   const scale = Math.min(width, height) / (maxRadius * 2.5);
 
@@ -517,59 +250,42 @@ function renderUnfoldedViewConical(svg: SVGSVGElement, result: CalculationResult
   const outerR = result.outerRadius * scale;
   const angle = (result.sectorAngle * Math.PI) / 180;
 
-  // Draw background grid
   drawGrid(svg, width, height);
 
-  // Draw the unfolded sector ring
-  const sectorGroup = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "g"
-  );
+  const sectorGroup = createSvgElement("g");
   sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
-  // Draw outer arc
+  // Outer arc
   const outerArcPath = describeArc(0, 0, outerR, 0, angle);
-  const outerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const outerArc = createSvgElement("path");
   outerArc.setAttribute("d", outerArcPath);
   outerArc.setAttribute("stroke", "#0d47a1");
   outerArc.setAttribute("stroke-width", "2");
   outerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(outerArc);
 
-  // Draw inner arc
+  // Inner arc
   const innerArcPath = describeArc(0, 0, innerR, 0, angle);
-  const innerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const innerArc = createSvgElement("path");
   innerArc.setAttribute("d", innerArcPath);
   innerArc.setAttribute("stroke", "#0d47a1");
   innerArc.setAttribute("stroke-width", "2");
   innerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(innerArc);
 
-  // Draw left radial line
-  const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  leftLine.setAttribute("x1", "0");
-  leftLine.setAttribute("y1", "0");
-  leftLine.setAttribute("x2", String(outerR));
-  leftLine.setAttribute("y2", "0");
-  leftLine.setAttribute("stroke", "#0d47a1");
-  leftLine.setAttribute("stroke-width", "2");
-  sectorGroup.appendChild(leftLine);
+  // Left radial line (from origin to outerR along 0 angle)
+  appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
 
-  // Draw right radial line
-  const rightX = outerR * Math.cos(angle);
-  const rightY = outerR * Math.sin(angle);
-  const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  rightLine.setAttribute("x1", "0");
-  rightLine.setAttribute("y1", "0");
-  rightLine.setAttribute("x2", String(rightX));
-  rightLine.setAttribute("y2", String(rightY));
-  rightLine.setAttribute("stroke", "#0d47a1");
-  rightLine.setAttribute("stroke-width", "2");
-  sectorGroup.appendChild(rightLine);
+  // Right radial line
+  const rightOuterX = outerR * Math.cos(angle);
+  const rightOuterY = outerR * Math.sin(angle);
+  const rightInnerX = innerR * Math.cos(angle);
+  const rightInnerY = innerR * Math.sin(angle);
+  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
 
-  // Fill the sector
-  const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightX} ${rightY} L ${rightX * innerR / outerR} ${rightY * innerR / outerR} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
+  // Fill
+  const fillPath = createSvgElement("path");
+  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
   fillPath.setAttribute("d", pathData);
   fillPath.setAttribute("fill", "#e3f2fd");
   fillPath.setAttribute("opacity", "0.5");
@@ -577,43 +293,18 @@ function renderUnfoldedViewConical(svg: SVGSVGElement, result: CalculationResult
 
   svg.appendChild(sectorGroup);
 
-  // Add dimension text
   const textOffset = 20;
-  const text1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text1.setAttribute("x", String(centerX - 80));
-  text1.setAttribute("y", String(centerY - innerR - textOffset));
-  text1.setAttribute("font-size", "12");
-  text1.setAttribute("fill", "#0d47a1");
-  text1.textContent = `R=${result.innerRadius.toFixed(1)}`;
-  svg.appendChild(text1);
-
-  const text2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text2.setAttribute("x", String(centerX - 80));
-  text2.setAttribute("y", String(centerY - outerR - textOffset));
-  text2.setAttribute("font-size", "12");
-  text2.setAttribute("fill", "#0d47a1");
-  text2.textContent = `r=${result.outerRadius.toFixed(1)}`;
-  svg.appendChild(text2);
-
-  const text3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text3.setAttribute("x", String(centerX + 20));
-  text3.setAttribute("y", String(centerY + 30));
-  text3.setAttribute("font-size", "12");
-  text3.setAttribute("fill", "#0d47a1");
-  text3.textContent = `θ=${result.sectorAngle.toFixed(1)}°`;
-  svg.appendChild(text3);
+  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, "#0d47a1");
+  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, "#0d47a1");
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}°`, 12, "#0d47a1");
 }
 
-/**
- * Render unfolded pattern view for polygonal lampshade
- */
 function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshadeResult) {
   const width = 400;
   const height = 400;
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Scale to fit the unfolded pattern
   const maxRadius = result.singleFaceOuterRadius;
   const scale = Math.min(width, height) / (maxRadius * 2.5);
 
@@ -621,79 +312,53 @@ function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshad
   const outerR = result.singleFaceOuterRadius * scale;
   const totalAngle = (result.totalSectorAngle * Math.PI) / 180;
 
-  // Draw background grid
   drawGrid(svg, width, height);
 
-  // Draw the unfolded sector ring
-  const sectorGroup = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "g"
-  );
+  const sectorGroup = createSvgElement("g");
   sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
-  // Draw outer arc
+  // Outer arc
   const outerArcPath = describeArc(0, 0, outerR, 0, totalAngle);
-  const outerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const outerArc = createSvgElement("path");
   outerArc.setAttribute("d", outerArcPath);
   outerArc.setAttribute("stroke", "#0d47a1");
   outerArc.setAttribute("stroke-width", "2");
   outerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(outerArc);
 
-  // Draw inner arc
+  // Inner arc
   const innerArcPath = describeArc(0, 0, innerR, 0, totalAngle);
-  const innerArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const innerArc = createSvgElement("path");
   innerArc.setAttribute("d", innerArcPath);
   innerArc.setAttribute("stroke", "#0d47a1");
   innerArc.setAttribute("stroke-width", "2");
   innerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(innerArc);
 
-  // Draw left radial line
-  const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  leftLine.setAttribute("x1", "0");
-  leftLine.setAttribute("y1", "0");
-  leftLine.setAttribute("x2", String(outerR));
-  leftLine.setAttribute("y2", "0");
-  leftLine.setAttribute("stroke", "#0d47a1");
-  leftLine.setAttribute("stroke-width", "2");
-  sectorGroup.appendChild(leftLine);
+  // Left radial line
+  appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
 
-  // Draw right radial line
-  const rightX = outerR * Math.cos(totalAngle);
-  const rightY = outerR * Math.sin(totalAngle);
-  const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  rightLine.setAttribute("x1", "0");
-  rightLine.setAttribute("y1", "0");
-  rightLine.setAttribute("x2", String(rightX));
-  rightLine.setAttribute("y2", String(rightY));
-  rightLine.setAttribute("stroke", "#0d47a1");
-  rightLine.setAttribute("stroke-width", "2");
-  sectorGroup.appendChild(rightLine);
+  // Right radial line
+  const rightOuterX = outerR * Math.cos(totalAngle);
+  const rightOuterY = outerR * Math.sin(totalAngle);
+  const rightInnerX = innerR * Math.cos(totalAngle);
+  const rightInnerY = innerR * Math.sin(totalAngle);
+  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
 
-  // Draw dividing lines for each face
+  // Dividing lines for each face
   const singleAngle = (result.singleFaceSectorAngle * Math.PI) / 180;
   for (let i = 1; i < result.sides; i++) {
-    const angle = i * singleAngle;
-    const outerX = outerR * Math.cos(angle);
-    const outerY = outerR * Math.sin(angle);
-    const innerX = innerR * Math.cos(angle);
-    const innerY = innerR * Math.sin(angle);
-
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(outerX));
-    line.setAttribute("y1", String(outerY));
-    line.setAttribute("x2", String(innerX));
-    line.setAttribute("y2", String(innerY));
-    line.setAttribute("stroke", "#0d47a1");
-    line.setAttribute("stroke-width", "1");
-    line.setAttribute("stroke-dasharray", "2,2");
-    sectorGroup.appendChild(line);
+    const a = i * singleAngle;
+    const ox = outerR * Math.cos(a);
+    const oy = outerR * Math.sin(a);
+    const ix = innerR * Math.cos(a);
+    const iy = innerR * Math.sin(a);
+    appendLine(sectorGroup, ix, iy, ox, oy, "#0d47a1", 1, "2,2");
   }
 
-  // Fill the sector
-  const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightX} ${rightY} L ${rightX * innerR / outerR} ${rightY * innerR / outerR} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
+  // Fill
+  const fillPath = createSvgElement("path");
+  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
   fillPath.setAttribute("d", pathData);
   fillPath.setAttribute("fill", "#e3f2fd");
   fillPath.setAttribute("opacity", "0.5");
@@ -701,35 +366,15 @@ function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshad
 
   svg.appendChild(sectorGroup);
 
-  // Add dimension text
   const textOffset = 20;
-  const text1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text1.setAttribute("x", String(centerX - 80));
-  text1.setAttribute("y", String(centerY - innerR - textOffset));
-  text1.setAttribute("font-size", "12");
-  text1.setAttribute("fill", "#0d47a1");
-  text1.textContent = `R=${result.singleFaceInnerRadius.toFixed(1)}`;
-  svg.appendChild(text1);
-
-  const text2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text2.setAttribute("x", String(centerX - 80));
-  text2.setAttribute("y", String(centerY - outerR - textOffset));
-  text2.setAttribute("font-size", "12");
-  text2.setAttribute("fill", "#0d47a1");
-  text2.textContent = `r=${result.singleFaceOuterRadius.toFixed(1)}`;
-  svg.appendChild(text2);
-
-  const text3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text3.setAttribute("x", String(centerX + 20));
-  text3.setAttribute("y", String(centerY + 30));
-  text3.setAttribute("font-size", "12");
-  text3.setAttribute("fill", "#0d47a1");
-  text3.textContent = `θ=${result.totalSectorAngle.toFixed(1)}° (${result.sides}面)`;
-  svg.appendChild(text3);
+  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.singleFaceInnerRadius.toFixed(1)}`, 12, "#0d47a1");
+  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.singleFaceOuterRadius.toFixed(1)}`, 12, "#0d47a1");
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.totalSectorAngle.toFixed(1)}° (${result.sides}面)`, 12, "#0d47a1");
 }
 
 /**
  * Render unfolded pattern view for waveform lampshade
+ * Shows an annulus sector with wavy inner/outer arcs
  */
 function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResult) {
   const width = 400;
@@ -737,225 +382,184 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // For waveform, show a simplified representation
-  // Draw background grid
+  const maxRadius = result.outerRadius;
+  const scale = Math.min(width, height) / (maxRadius * 2.5);
+
+  const innerR = result.innerRadius * scale;
+  const outerR = result.outerRadius * scale;
+  const sectorAngleRad = result.sectorAngleRad;
+  const waveCount = result.waveCount;
+  const waveHeightScaled = result.waveHeight * scale;
+
   drawGrid(svg, width, height);
 
-  // Draw a simple rectangular representation
-  const rectX = 50;
-  const rectY = 50;
-  const rectWidth = 300;
-  const rectHeight = 300;
+  const sectorGroup = createSvgElement("g");
+  sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
-  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  rect.setAttribute("x", String(rectX));
-  rect.setAttribute("y", String(rectY));
-  rect.setAttribute("width", String(rectWidth));
-  rect.setAttribute("height", String(rectHeight));
-  rect.setAttribute("stroke", "#0d47a1");
-  rect.setAttribute("stroke-width", "2");
-  rect.setAttribute("fill", "#e3f2fd");
-  rect.setAttribute("opacity", "0.5");
-  svg.appendChild(rect);
+  // Generate wavy outer arc path
+  const numSegments = waveCount * 20;
+  let outerWavePath = "";
+  for (let i = 0; i <= numSegments; i++) {
+    const t = i / numSegments;
+    const angle = t * sectorAngleRad;
+    const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
+    const r = outerR + waveOffset;
+    const x = r * Math.cos(angle);
+    const y = r * Math.sin(angle);
+    outerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  }
 
-  // Draw wavy edges
-  const topWavePath = generateWavePath(rectX, rectY, rectX + rectWidth, rectY, result.waveCount || 3);
-  const topWave = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  topWave.setAttribute("d", topWavePath);
-  topWave.setAttribute("stroke", "#0d47a1");
-  topWave.setAttribute("stroke-width", "2");
-  topWave.setAttribute("fill", "none");
-  svg.appendChild(topWave);
+  const outerWave = createSvgElement("path");
+  outerWave.setAttribute("d", outerWavePath);
+  outerWave.setAttribute("stroke", "#0d47a1");
+  outerWave.setAttribute("stroke-width", "2");
+  outerWave.setAttribute("fill", "none");
+  sectorGroup.appendChild(outerWave);
 
-  const bottomWavePath = generateWavePath(rectX, rectY + rectHeight, rectX + rectWidth, rectY + rectHeight, result.waveCount || 3);
-  const bottomWave = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  bottomWave.setAttribute("d", bottomWavePath);
-  bottomWave.setAttribute("stroke", "#0d47a1");
-  bottomWave.setAttribute("stroke-width", "2");
-  bottomWave.setAttribute("fill", "none");
-  svg.appendChild(bottomWave);
+  // Generate wavy inner arc path
+  let innerWavePath = "";
+  for (let i = 0; i <= numSegments; i++) {
+    const t = i / numSegments;
+    const angle = t * sectorAngleRad;
+    const waveOffset = waveHeightScaled * Math.sin(t * waveCount * 2 * Math.PI);
+    const r = innerR + waveOffset;
+    const x = r * Math.cos(angle);
+    const y = r * Math.sin(angle);
+    innerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  }
 
-  // Add text label
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", String(centerX));
-  text.setAttribute("y", String(centerY));
-  text.setAttribute("font-size", "14");
-  text.setAttribute("fill", "#0d47a1");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("dominant-baseline", "middle");
-  text.textContent = `波浪灯罩 - ${result.waveCount}波`;
-  svg.appendChild(text);
+  const innerWave = createSvgElement("path");
+  innerWave.setAttribute("d", innerWavePath);
+  innerWave.setAttribute("stroke", "#0d47a1");
+  innerWave.setAttribute("stroke-width", "2");
+  innerWave.setAttribute("fill", "none");
+  sectorGroup.appendChild(innerWave);
+
+  // Left radial line
+  appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
+
+  // Right radial line
+  const rightOuterX = outerR * Math.cos(sectorAngleRad);
+  const rightOuterY = outerR * Math.sin(sectorAngleRad);
+  const rightInnerX = innerR * Math.cos(sectorAngleRad);
+  const rightInnerY = innerR * Math.sin(sectorAngleRad);
+  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
+
+  // Fill the base sector (without waves, for background)
+  const fillPath = createSvgElement("path");
+  const largeArc = sectorAngleRad > Math.PI ? 1 : 0;
+  const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 ${largeArc} 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerR} 0 Z`;
+  fillPath.setAttribute("d", pathData);
+  fillPath.setAttribute("fill", "#e3f2fd");
+  fillPath.setAttribute("opacity", "0.3");
+  sectorGroup.appendChild(fillPath);
+
+  svg.appendChild(sectorGroup);
+
+  const textOffset = 20;
+  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, "#0d47a1");
+  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, "#0d47a1");
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}° (${result.waveCount}波)`, 12, "#0d47a1");
 }
 
-/**
- * Draw grid background
- */
+// ==================== SVG Helpers ====================
+
+function createSvgElement(tag: string): SVGElement {
+  return document.createElementNS("http://www.w3.org/2000/svg", tag);
+}
+
+function appendLine(parent: SVGElement | SVGSVGElement, x1: number, y1: number, x2: number, y2: number, stroke: string, strokeWidth: number, dashArray?: string) {
+  const line = createSvgElement("line");
+  line.setAttribute("x1", String(x1));
+  line.setAttribute("y1", String(y1));
+  line.setAttribute("x2", String(x2));
+  line.setAttribute("y2", String(y2));
+  line.setAttribute("stroke", stroke);
+  line.setAttribute("stroke-width", String(strokeWidth));
+  if (dashArray) line.setAttribute("stroke-dasharray", dashArray);
+  parent.appendChild(line);
+}
+
+function appendText(parent: SVGElement | SVGSVGElement, x: number, y: number, content: string, fontSize: number, fill: string) {
+  const text = createSvgElement("text");
+  text.setAttribute("x", String(x));
+  text.setAttribute("y", String(y));
+  text.setAttribute("font-size", String(fontSize));
+  text.setAttribute("fill", fill);
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("dominant-baseline", "middle");
+  text.textContent = content;
+  parent.appendChild(text);
+}
+
 function drawGrid(svg: SVGSVGElement, width: number, height: number) {
   const gridSize = 20;
-  const gridGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const gridGroup = createSvgElement("g");
   gridGroup.setAttribute("stroke", "#e0e0e0");
   gridGroup.setAttribute("stroke-width", "0.5");
 
   for (let i = 0; i <= width; i += gridSize) {
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(i));
-    line.setAttribute("y1", "0");
-    line.setAttribute("x2", String(i));
-    line.setAttribute("y2", String(height));
-    gridGroup.appendChild(line);
+    appendLine(gridGroup as any, i, 0, i, height, "#e0e0e0", 0.5);
   }
 
   for (let i = 0; i <= height; i += gridSize) {
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", "0");
-    line.setAttribute("y1", String(i));
-    line.setAttribute("x2", String(width));
-    line.setAttribute("y2", String(i));
-    gridGroup.appendChild(line);
+    appendLine(gridGroup as any, 0, i, width, i, "#e0e0e0", 0.5);
   }
 
   svg.appendChild(gridGroup);
 }
 
-/**
- * Describe an arc path for SVG
- */
-function describeArc(
-  x: number,
-  y: number,
-  radius: number,
-  startAngle: number,
-  endAngle: number
-): string {
+function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number): string {
   const start = polarToCartesian(x, y, radius, endAngle);
   const end = polarToCartesian(x, y, radius, startAngle);
-  const largeArc = endAngle - startAngle <= 180 ? "0" : "1";
+  const largeArc = endAngle - startAngle <= Math.PI ? "0" : "1";
 
   return [
-    "M",
-    start.x,
-    start.y,
-    "A",
-    radius,
-    radius,
-    0,
-    largeArc,
-    0,
-    end.x,
-    end.y,
+    "M", start.x, start.y,
+    "A", radius, radius, 0, largeArc, 0, end.x, end.y,
   ].join(" ");
 }
 
-/**
- * Convert polar coordinates to cartesian
- */
-function polarToCartesian(
-  centerX: number,
-  centerY: number,
-  radius: number,
-  angleInDegrees: number
-) {
-  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+function polarToCartesian(centerX: number, centerY: number, radius: number, angleInRadians: number) {
   return {
     x: centerX + radius * Math.cos(angleInRadians),
     y: centerY + radius * Math.sin(angleInRadians),
   };
 }
 
-/**
- * Generate a wavy path
- */
-function generateWavePath(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  waveCount: number
-): string {
+function generateSineWavePath(x1: number, y1: number, x2: number, y2: number, waveCount: number, waveHeight: number): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-  const angle = Math.atan2(dy, dx);
+  const segments = waveCount * 20;
   
-  const waveHeight = 10;
-  const waveLength = distance / waveCount;
-  
-  let path = `M ${x1} ${y1}`;
-  
-  for (let i = 0; i <= waveCount; i++) {
-    const t = i / waveCount;
-    const x = x1 + dx * t;
-    const y = y1 + dy * t;
+  let path = "";
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const baseX = x1 + dx * t;
+    const baseY = y1 + dy * t;
     
-    // Add wave offset
-    const waveOffset = Math.sin(i * Math.PI) * waveHeight;
-    const offsetX = x - Math.sin(angle) * waveOffset;
-    const offsetY = y + Math.cos(angle) * waveOffset;
+    // Perpendicular offset for wave
+    const angle = Math.atan2(dy, dx);
+    const waveOffset = waveHeight * Math.sin(t * waveCount * 2 * Math.PI);
+    const px = baseX - Math.sin(angle) * waveOffset;
+    const py = baseY + Math.cos(angle) * waveOffset;
     
-    if (i === 0) {
-      path = `M ${offsetX} ${offsetY}`;
-    } else {
-      path += ` Q ${offsetX} ${offsetY} ${offsetX} ${offsetY}`;
-    }
+    path += i === 0 ? `M ${px} ${py}` : ` L ${px} ${py}`;
   }
   
   return path;
 }
 
-/**
- * Add a dimension line with label
- */
-function addDimensionLine(
-  svg: SVGSVGElement,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  label: string,
-  position: "top" | "bottom"
-) {
-  // Draw dimension line
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", String(x1));
-  line.setAttribute("y1", String(y1));
-  line.setAttribute("x2", String(x2));
-  line.setAttribute("y2", String(y2));
-  line.setAttribute("stroke", "#ff6b35");
-  line.setAttribute("stroke-width", "1");
-  svg.appendChild(line);
+function addDimensionLine(svg: SVGSVGElement, x1: number, y1: number, x2: number, y2: number, label: string, position: "top" | "bottom") {
+  appendLine(svg, x1, y1, x2, y2, "#ff6b35", 1);
 
-  // Draw end caps
   const capSize = 5;
-  const cap1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  cap1.setAttribute("x1", String(x1));
-  cap1.setAttribute("y1", String(y1 - capSize));
-  cap1.setAttribute("x2", String(x1));
-  cap1.setAttribute("y2", String(y1 + capSize));
-  cap1.setAttribute("stroke", "#ff6b35");
-  cap1.setAttribute("stroke-width", "1");
-  svg.appendChild(cap1);
+  appendLine(svg, x1, y1 - capSize, x1, y1 + capSize, "#ff6b35", 1);
+  appendLine(svg, x2, y2 - capSize, x2, y2 + capSize, "#ff6b35", 1);
 
-  const cap2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  cap2.setAttribute("x1", String(x2));
-  cap2.setAttribute("y1", String(y2 - capSize));
-  cap2.setAttribute("x2", String(x2));
-  cap2.setAttribute("y2", String(y2 + capSize));
-  cap2.setAttribute("stroke", "#ff6b35");
-  cap2.setAttribute("stroke-width", "1");
-  svg.appendChild(cap2);
-
-  // Add label
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
   const offsetY = position === "top" ? -15 : 15;
 
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", String(midX));
-  text.setAttribute("y", String(midY + offsetY));
-  text.setAttribute("font-size", "12");
-  text.setAttribute("fill", "#ff6b35");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("dominant-baseline", "middle");
-  text.textContent = label;
-  svg.appendChild(text);
+  appendText(svg, midX, midY + offsetY, label, 12, "#ff6b35");
 }

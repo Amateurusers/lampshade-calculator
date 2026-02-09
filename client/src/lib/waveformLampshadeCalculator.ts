@@ -1,6 +1,11 @@
 /**
  * Waveform Lampshade Calculator
  * Calculates unfolding patterns for lampshades with wavy edges
+ * 
+ * Mathematical Principle:
+ * A waveform lampshade is essentially a conical lampshade with wavy edges.
+ * The unfolded pattern is an annulus sector (same as conical), but with
+ * the inner and outer arcs replaced by wavy curves along the arc path.
  */
 
 export interface WaveformLampshadeInput {
@@ -30,6 +35,16 @@ export interface WaveformLampshadeResult {
   bottomCircumference: number; // Bottom opening circumference
   waveLength: number;         // Length of one wave cycle
   actualSlantHeight: number;  // Actual slant height including wave distortion
+  
+  // Cone parameters (same as conical lampshade)
+  apexDistance: number;       // Distance from apex to top circle
+  totalSlantHeight: number;   // Total slant height from apex to bottom
+  
+  // Unfolded sector ring parameters (same principle as conical)
+  innerRadius: number;        // Inner radius of the unfolded sector
+  outerRadius: number;        // Outer radius of the unfolded sector
+  sectorAngle: number;        // Central angle of the sector (in degrees)
+  sectorAngleRad: number;     // Central angle in radians
   
   // Unfolding calculations
   unfoldedTopArcLength: number;  // Arc length at top (including waves)
@@ -64,6 +79,12 @@ export function calculateWaveformLampshade(
     bottomCircumference: 0,
     waveLength: 0,
     actualSlantHeight: 0,
+    apexDistance: 0,
+    totalSlantHeight: 0,
+    innerRadius: 0,
+    outerRadius: 0,
+    sectorAngle: 0,
+    sectorAngleRad: 0,
     unfoldedTopArcLength: 0,
     unfoldedBottomArcLength: 0,
     materialWidth: 0,
@@ -105,8 +126,24 @@ export function calculateWaveformLampshade(
   // Wave length is the circumference divided by wave count
   result.waveLength = result.topCircumference / input.waveCount;
 
+  // Calculate cone apex distance (same as conical lampshade)
+  const radiusDiff = result.bottomRadius - result.topRadius;
+  if (Math.abs(radiusDiff) < 0.001) {
+    // Cylinder case
+    result.apexDistance = 10000;
+    result.totalSlantHeight = 10000 + input.slantHeight;
+  } else {
+    result.apexDistance = (result.topRadius * input.slantHeight) / radiusDiff;
+    result.totalSlantHeight = result.apexDistance + input.slantHeight;
+  }
+
+  // Unfolded sector ring parameters
+  result.innerRadius = result.apexDistance;
+  result.outerRadius = result.totalSlantHeight;
+  result.sectorAngleRad = result.bottomCircumference / result.outerRadius;
+  result.sectorAngle = (result.sectorAngleRad * 180) / Math.PI;
+
   // Calculate actual arc length including wave distortion
-  // For a sine wave: arc length ≈ wavelength * sqrt(1 + (amplitude * 2π / wavelength)²)
   const waveAmplitude = input.waveHeight;
   const waveFrequency = (2 * Math.PI) / result.waveLength;
   
@@ -121,19 +158,16 @@ export function calculateWaveformLampshade(
   result.unfoldedBottomArcLength = result.bottomCircumference * bottomArcLengthFactor;
 
   // Calculate actual slant height (including wave distortion in vertical direction)
-  // The wave adds some vertical component
   result.actualSlantHeight = input.slantHeight > 0
     ? Math.sqrt(Math.pow(input.slantHeight, 2) + Math.pow(waveAmplitude, 2))
     : waveAmplitude;
 
   // Material dimensions
-  result.materialWidth = Math.max(
-    result.unfoldedTopArcLength,
-    result.unfoldedBottomArcLength
-  ) * 1.15; // Add 15% margin for waves
-  result.materialHeight = result.actualSlantHeight * 1.15; // Add 15% margin
+  const halfAngle = result.sectorAngleRad / 2;
+  result.materialWidth = 2 * result.outerRadius * Math.sin(halfAngle);
+  result.materialHeight = result.outerRadius * (1 + Math.cos(halfAngle));
 
-  // Calculate surface area (approximate as cylinder with wave correction)
+  // Calculate surface area (approximate as cone with wave correction)
   const avgRadius = (result.topRadius + result.bottomRadius) / 2;
   const avgCircumference = 2 * Math.PI * avgRadius;
   const baseArea = avgCircumference * input.slantHeight;
