@@ -1,9 +1,8 @@
 import { Card } from "@/components/ui/card";
-import { CalculationResult, formatNumber } from "@/lib/lampshadeCalculator";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
 interface CalculationResultsProps {
-  result: CalculationResult;
+  result: any; // Support any result type
 }
 
 /**
@@ -45,123 +44,206 @@ export function CalculationResults({ result }: CalculationResultsProps) {
         <h3 className="text-lg font-semibold text-foreground mb-4">基本尺寸</h3>
         <div className="grid grid-cols-2 gap-6">
           <ResultItem
-            label="上口半径"
-            value={formatNumber(result.topRadius, 2)}
+            label="上口直径"
+            value={formatNumber(result.topDiameter, 2)}
             unit="mm"
           />
           <ResultItem
-            label="下口半径"
-            value={formatNumber(result.bottomRadius, 2)}
+            label="下口直径"
+            value={formatNumber(result.bottomDiameter, 2)}
             unit="mm"
           />
-          <ResultItem
-            label="灯罩高度"
-            value={formatNumber(result.height, 2)}
-            unit="mm"
-          />
-          <ResultItem
-            label="斜高"
-            value={formatNumber(result.slantHeight, 2)}
-            unit="mm"
-          />
+          {result.slantHeight !== undefined && (
+            <ResultItem
+              label="斜高"
+              value={formatNumber(result.slantHeight, 2)}
+              unit="mm"
+            />
+          )}
+          {result.height !== undefined && (
+            <ResultItem
+              label="灯罩高度"
+              value={formatNumber(result.height, 2)}
+              unit="mm"
+            />
+          )}
         </div>
       </Card>
 
       {/* Circumferences */}
-      <Card className="p-6 bg-card shadow-sm border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-4">周长计算</h3>
-        <div className="grid grid-cols-2 gap-6">
-          <ResultItem
-            label="上口周长"
-            value={formatNumber(result.topCircumference, 2)}
-            unit="mm"
-          />
-          <ResultItem
-            label="下口周长"
-            value={formatNumber(result.bottomCircumference, 2)}
-            unit="mm"
-          />
-        </div>
-      </Card>
+      {result.topCircumference !== undefined && (
+        <Card className="p-6 bg-card shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">周长计算</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <ResultItem
+              label="上口周长"
+              value={formatNumber(result.topCircumference, 2)}
+              unit="mm"
+            />
+            <ResultItem
+              label="下口周长"
+              value={formatNumber(result.bottomCircumference, 2)}
+              unit="mm"
+            />
+          </div>
+        </Card>
+      )}
 
-      {/* Unfolding Pattern */}
-      <Card className="p-6 bg-secondary shadow-sm border-border">
-        <h3 className="text-lg font-semibold text-secondary-foreground mb-4">
-          展开图参数
-        </h3>
-        <div className="grid grid-cols-2 gap-6">
-          <ResultItem
-            label="内半径"
-            value={formatNumber(result.innerRadius, 2)}
-            unit="mm"
-            highlight
-          />
-          <ResultItem
-            label="外半径"
-            value={formatNumber(result.outerRadius, 2)}
-            unit="mm"
-            highlight
-          />
-          <ResultItem
-            label="扇形角度"
-            value={formatNumber(result.sectorAngle, 2)}
-            unit="°"
-            highlight
-          />
-          <ResultItem
-            label="弧长"
-            value={formatNumber(result.unfoldedArcLength, 2)}
-            unit="mm"
-            highlight
-          />
-        </div>
-      </Card>
+      {/* Polygon-specific results */}
+      {result.sides !== undefined && (
+        <Card className="p-6 bg-card shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">多边形参数</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <ResultItem
+              label="边数"
+              value={String(result.sides)}
+              unit=""
+            />
+            <ResultItem
+              label="中心角"
+              value={formatNumber(result.topCentralAngle, 2)}
+              unit="°"
+            />
+            <ResultItem
+              label="上边长"
+              value={formatNumber(result.topSideLength, 2)}
+              unit="mm"
+            />
+            <ResultItem
+              label="下边长"
+              value={formatNumber(result.bottomSideLength, 2)}
+              unit="mm"
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* Waveform-specific results */}
+      {result.waveCount !== undefined && (
+        <Card className="p-6 bg-card shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">波浪形参数</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <ResultItem
+              label="波数"
+              value={String(result.waveCount)}
+              unit=""
+            />
+            <ResultItem
+              label="波高"
+              value={formatNumber(result.waveHeight, 2)}
+              unit="mm"
+            />
+            <ResultItem
+              label="波形类型"
+              value={result.waveType === "sine" ? "正弦波" : "余弦波"}
+              unit=""
+            />
+            <ResultItem
+              label="波长"
+              value={formatNumber(result.waveLength, 2)}
+              unit="mm"
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* Unfolding Pattern (Cone only) */}
+      {result.innerRadius !== undefined && (
+        <Card className="p-6 bg-secondary shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-secondary-foreground mb-4">
+            展开图参数
+          </h3>
+          <div className="grid grid-cols-2 gap-6">
+            <ResultItem
+              label="内半径"
+              value={formatNumber(result.innerRadius, 2)}
+              unit="mm"
+              highlight
+            />
+            <ResultItem
+              label="外半径"
+              value={formatNumber(result.outerRadius, 2)}
+              unit="mm"
+              highlight
+            />
+            <ResultItem
+              label="扇形角度"
+              value={formatNumber(result.sectorAngle, 2)}
+              unit="°"
+              highlight
+            />
+            <ResultItem
+              label="弧长"
+              value={formatNumber(result.unfoldedArcLength, 2)}
+              unit="mm"
+              highlight
+            />
+          </div>
+        </Card>
+      )}
 
       {/* Material Dimensions */}
-      <Card className="p-6 bg-card shadow-sm border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-4">
-          开料尺寸
-        </h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
-            <span className="text-sm font-medium text-foreground">推荐材料宽度</span>
-            <span className="text-xl font-bold text-primary">
-              {formatNumber(result.materialWidth, 1)} mm
-            </span>
+      {result.materialWidth !== undefined && (
+        <Card className="p-6 bg-card shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            开料尺寸
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
+              <span className="text-sm font-medium text-foreground">推荐材料宽度</span>
+              <span className="text-xl font-bold text-primary">
+                {formatNumber(result.materialWidth, 1)} mm
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
+              <span className="text-sm font-medium text-foreground">推荐材料高度</span>
+              <span className="text-xl font-bold text-primary">
+                {formatNumber(result.materialHeight, 1)} mm
+              </span>
+            </div>
           </div>
-          <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
-            <span className="text-sm font-medium text-foreground">推荐材料高度</span>
-            <span className="text-xl font-bold text-primary">
-              {formatNumber(result.materialHeight, 1)} mm
-            </span>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Cone Apex Info */}
-      <Card className="p-6 bg-card shadow-sm border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-4">圆锥顶点</h3>
-        <div className="grid grid-cols-2 gap-6">
-          <ResultItem
-            label="顶点距离"
-            value={
-              result.apexDistance > 1000
-                ? "∞ (圆柱)"
-                : formatNumber(result.apexDistance, 2)
-            }
-            unit="mm"
-          />
-          <ResultItem
-            label="总斜高"
-            value={
-              result.totalSlantHeight > 1000
-                ? "∞ (圆柱)"
-                : formatNumber(result.totalSlantHeight, 2)
-            }
-            unit="mm"
-          />
-        </div>
-      </Card>
+      {result.apexDistance !== undefined && (
+        <Card className="p-6 bg-card shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">圆锥顶点</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <ResultItem
+              label="顶点距离"
+              value={
+                result.apexDistance > 1000
+                  ? "∞ (圆柱)"
+                  : formatNumber(result.apexDistance, 2)
+              }
+              unit="mm"
+            />
+            <ResultItem
+              label="总斜高"
+              value={
+                result.totalSlantHeight > 1000
+                  ? "∞ (圆柱)"
+                  : formatNumber(result.totalSlantHeight, 2)
+              }
+              unit="mm"
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* Surface Area */}
+      {result.totalSurfaceArea !== undefined && (
+        <Card className="p-6 bg-card shadow-sm border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">表面积</h3>
+          <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
+            <span className="text-sm font-medium text-foreground">总表面积</span>
+            <span className="text-xl font-bold text-primary">
+              {formatNumber(result.totalSurfaceArea, 2)} mm²
+            </span>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -189,4 +271,12 @@ function ResultItem({
       </div>
     </div>
   );
+}
+
+/**
+ * Format number to specified decimal places
+ */
+function formatNumber(num: number, decimals: number): string {
+  if (typeof num !== "number" || isNaN(num)) return "0";
+  return num.toFixed(decimals);
 }
