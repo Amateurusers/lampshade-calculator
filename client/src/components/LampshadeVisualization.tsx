@@ -417,21 +417,82 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   fillPath.setAttribute("opacity", "0.3");
   sectorGroup.appendChild(fillPath);
 
-  const numSegments = Math.max(waveCount * 40, 160);
+  // Helper: generate wave arc path for a given base radius
+  const generateWaveArcPath = (baseR: number): string => {
+    const amplitude = waveHeightScaled / 2;
+    const halfWaveAngleRad = sectorAngleRad / (2 * waveCount);
+    
+    let path = "";
+    
+    for (let i = 0; i < 2 * waveCount; i++) {
+      // Endpoints on the base circle
+      const a1 = i * halfWaveAngleRad;
+      const a2 = (i + 1) * halfWaveAngleRad;
+      
+      const p1x = baseR * Math.cos(a1);
+      const p1y = baseR * Math.sin(a1);
+      const p2x = baseR * Math.cos(a2);
+      const p2y = baseR * Math.sin(a2);
+      
+      // Chord length and midpoint
+      const chord = Math.sqrt((p2x - p1x) ** 2 + (p2y - p1y) ** 2);
+      const mx = (p1x + p2x) / 2;
+      const my = (p1y + p2y) / 2;
+      const midR = Math.sqrt(mx ** 2 + my ** 2);
+      
+      // Unit vector from origin through chord midpoint
+      const nx = midR > 0 ? mx / midR : 0;
+      const ny = midR > 0 ? my / midR : 1;
+      
+      // Arc radius from chord and sagitta: R = chord²/(8h) + h/2
+      const arcRadius = (chord ** 2) / (8 * amplitude) + amplitude / 2;
+      
+      // Distance from chord midpoint to arc center
+      const d = arcRadius - amplitude;
+      
+      // Determine direction: even index = outward (peak), odd = inward (trough)
+      const isOutward = (i % 2 === 0);
+      
+      let cx: number, cy: number;
+      if (isOutward) {
+        // Peak: arc bulges outward, center is on the inward side
+        cx = mx - d * nx;
+        cy = my - d * ny;
+      } else {
+        // Trough: arc bulges inward, center is on the outward side
+        cx = mx + d * nx;
+        cy = my + d * ny;
+      }
+      
+      // For SVG path, we use relative angles from the arc center
+      // SVG arc command: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+      // We'll use absolute positioning with proper sweep direction
+      
+      if (i === 0) {
+        path = `M ${p1x} ${p1y}`;
+      }
+      
+      // Calculate if we need large-arc-flag
+      const arcAngle1 = Math.atan2(p1y - cy, p1x - cx);
+      const arcAngle2 = Math.atan2(p2y - cy, p2x - cx);
+      let deltaAngle = arcAngle2 - arcAngle1;
+      
+      // Normalize delta angle
+      while (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+      while (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+      
+      const largeArcFlag = Math.abs(deltaAngle) > Math.PI ? 1 : 0;
+      const sweepFlag = deltaAngle > 0 ? 1 : 0;
+      
+      path += ` A ${arcRadius} ${arcRadius} 0 ${largeArcFlag} ${sweepFlag} ${p2x} ${p2y}`;
+    }
+    
+    return path;
+  };
 
   // Outer arc (bottom edge of lampshade)
   if (result.bottomWave) {
-    let outerWavePath = "";
-    for (let i = 0; i <= numSegments; i++) {
-      const t = i / numSegments;
-      const angle = t * sectorAngleRad;
-      const amplitude = waveHeightScaled / 2; // peak-to-trough = waveHeight
-      const waveOffset = amplitude * Math.sin(t * waveCount * 2 * Math.PI);
-      const r = outerR + waveOffset;
-      const x = r * Math.cos(angle);
-      const y = r * Math.sin(angle);
-      outerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
-    }
+    const outerWavePath = generateWaveArcPath(outerR);
     const outerWave = createSvgElement("path");
     outerWave.setAttribute("d", outerWavePath);
     outerWave.setAttribute("stroke", "#0d47a1");
@@ -451,17 +512,7 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
 
   // Inner arc (top edge of lampshade)
   if (result.topWave) {
-    let innerWavePath = "";
-    for (let i = 0; i <= numSegments; i++) {
-      const t = i / numSegments;
-      const angle = t * sectorAngleRad;
-      const amplitude = waveHeightScaled / 2; // peak-to-trough = waveHeight
-      const waveOffset = amplitude * Math.sin(t * waveCount * 2 * Math.PI);
-      const r = innerR + waveOffset;
-      const x = r * Math.cos(angle);
-      const y = r * Math.sin(angle);
-      innerWavePath += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
-    }
+    const innerWavePath = generateWaveArcPath(innerR);
     const innerWave = createSvgElement("path");
     innerWave.setAttribute("d", innerWavePath);
     innerWave.setAttribute("stroke", "#0d47a1");

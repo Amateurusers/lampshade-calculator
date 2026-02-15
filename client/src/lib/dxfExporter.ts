@@ -261,69 +261,83 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const startAngleDeg = 270 - sectorAngleDeg / 2;
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
 
-  // Use enough segments for smooth curves
-  // More segments per wave cycle = smoother curve
-  const numSegments = Math.max(waveCount * 40, 160);
+  // Helper: generate wave arcs for a given base radius
+  const generateWaveArcs = (baseR: number) => {
+    const amplitude = waveHeight / 2;
+    const halfWaveAngleRad = sectorAngleRad / (2 * waveCount);
+    
+    for (let i = 0; i < 2 * waveCount; i++) {
+      // Endpoints on the base circle
+      const a1 = startAngleRad + i * halfWaveAngleRad;
+      const a2 = startAngleRad + (i + 1) * halfWaveAngleRad;
+      
+      const p1x = baseR * Math.cos(a1);
+      const p1y = baseR * Math.sin(a1);
+      const p2x = baseR * Math.cos(a2);
+      const p2y = baseR * Math.sin(a2);
+      
+      // Chord length and midpoint
+      const chord = Math.sqrt((p2x - p1x) ** 2 + (p2y - p1y) ** 2);
+      const mx = (p1x + p2x) / 2;
+      const my = (p1y + p2y) / 2;
+      const midR = Math.sqrt(mx ** 2 + my ** 2);
+      
+      // Unit vector from origin through chord midpoint (radial outward)
+      const nx = midR > 0 ? mx / midR : 0;
+      const ny = midR > 0 ? my / midR : 1;
+      
+      // Arc radius from chord and sagitta: R = chord²/(8h) + h/2
+      const arcRadius = (chord ** 2) / (8 * amplitude) + amplitude / 2;
+      
+      // Distance from chord midpoint to arc center
+      const d = arcRadius - amplitude;
+      
+      // Determine direction: even index = outward (peak), odd = inward (trough)
+      const isOutward = (i % 2 === 0);
+      
+      let cx: number, cy: number;
+      if (isOutward) {
+        // Peak: arc bulges outward, center is on the inward side
+        cx = mx - d * nx;
+        cy = my - d * ny;
+      } else {
+        // Trough: arc bulges inward, center is on the outward side
+        cx = mx + d * nx;
+        cy = my + d * ny;
+      }
+      
+      // Calculate DXF ARC angles (relative to arc center)
+      let arcA1 = Math.atan2(p1y - cy, p1x - cx) * 180 / Math.PI;
+      let arcA2 = Math.atan2(p2y - cy, p2x - cx) * 180 / Math.PI;
+      
+      // Normalize to 0-360
+      if (arcA1 < 0) arcA1 += 360;
+      if (arcA2 < 0) arcA2 += 360;
+      
+      // DXF ARC draws counterclockwise from startAngle to endAngle
+      // For outward (peak) arcs: center is inward, arc goes CCW from p1 to p2
+      //   → startAngle = arcA1, endAngle = arcA2
+      // For inward (trough) arcs: center is outward, arc goes CW from p1 to p2
+      //   → we need to swap: startAngle = arcA2, endAngle = arcA1
+      if (isOutward) {
+        addArc(lines, cx, cy, arcRadius, arcA1, arcA2);
+      } else {
+        addArc(lines, cx, cy, arcRadius, arcA2, arcA1);
+      }
+    }
+  };
 
   // Draw outer arc (bottom edge of lampshade)
   if (bottomWave) {
-    // Wavy outer arc - waves evenly distributed
-    for (let i = 0; i < numSegments; i++) {
-      const t1 = i / numSegments;
-      const t2 = (i + 1) / numSegments;
-      
-      const angle1 = startAngleRad + t1 * sectorAngleRad;
-      const angle2 = startAngleRad + t2 * sectorAngleRad;
-      
-      // Wave offset: use full cycles so waves are evenly distributed
-      // sin(t * waveCount * 2π) gives exactly waveCount complete waves from t=0 to t=1
-      // amplitude = waveHeight/2 so that peak-to-trough = waveHeight
-      const amplitude = waveHeight / 2;
-      const waveOffset1 = amplitude * Math.sin(t1 * waveCount * 2 * Math.PI);
-      const waveOffset2 = amplitude * Math.sin(t2 * waveCount * 2 * Math.PI);
-      
-      const r1 = outerR + waveOffset1;
-      const r2 = outerR + waveOffset2;
-      
-      const x1 = r1 * Math.cos(angle1);
-      const y1 = r1 * Math.sin(angle1);
-      const x2 = r2 * Math.cos(angle2);
-      const y2 = r2 * Math.sin(angle2);
-      
-      addLine(lines, x1, y1, x2, y2);
-    }
+    generateWaveArcs(outerR);
   } else {
-    // Smooth outer arc (no waves)
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
   // Draw inner arc (top edge of lampshade)
   if (topWave) {
-    // Wavy inner arc - waves evenly distributed
-    for (let i = 0; i < numSegments; i++) {
-      const t1 = i / numSegments;
-      const t2 = (i + 1) / numSegments;
-      
-      const angle1 = startAngleRad + t1 * sectorAngleRad;
-      const angle2 = startAngleRad + t2 * sectorAngleRad;
-      
-      // amplitude = waveHeight/2 so that peak-to-trough = waveHeight
-      const amplitude = waveHeight / 2;
-      const waveOffset1 = amplitude * Math.sin(t1 * waveCount * 2 * Math.PI);
-      const waveOffset2 = amplitude * Math.sin(t2 * waveCount * 2 * Math.PI);
-      
-      const r1 = innerR + waveOffset1;
-      const r2 = innerR + waveOffset2;
-      
-      const x1 = r1 * Math.cos(angle1);
-      const y1 = r1 * Math.sin(angle1);
-      const x2 = r2 * Math.cos(angle2);
-      const y2 = r2 * Math.sin(angle2);
-      
-      addLine(lines, x1, y1, x2, y2);
-    }
+    generateWaveArcs(innerR);
   } else {
-    // Smooth inner arc (no waves)
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
