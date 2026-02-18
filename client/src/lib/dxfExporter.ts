@@ -13,12 +13,16 @@ import { WaveformLampshadeResult } from "./waveformLampshadeCalculator";
  */
 
 export function generateDXFContent(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): string {
+  console.log('[DXF] generateDXFContent called with:', result);
   // Check if it's a polygon or waveform result
   if ('sides' in result) {
+    console.log('[DXF] Detected polygon lampshade');
     return generatePolygonDXF(result as PolygonLampshadeResult);
   } else if ('waveCount' in result) {
+    console.log('[DXF] Detected waveform lampshade');
     return generateWaveformDXF(result as WaveformLampshadeResult);
   }
+  console.log('[DXF] Detected conical lampshade');
   
   // Otherwise it's a cone result
   if (!result.isValid) {
@@ -205,6 +209,7 @@ function generatePolygonDXF(result: PolygonLampshadeResult): string {
  * This matches the user's expectation that waveHeight is the total wave height.
  */
 function generateWaveformDXF(result: WaveformLampshadeResult): string {
+  console.log('[DXF] Generating waveform DXF:', result);
   const lines: string[] = [];
 
   const outerR = result.outerRadius;
@@ -262,11 +267,16 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
 
   // Helper: generate wave arcs for a given base radius
-  const generateWaveArcs = (baseR: number) => {
+  // Returns the first and last arc endpoints for radial line connection
+  const generateWaveArcs = (baseR: number): { firstPoint: {x: number, y: number}, lastPoint: {x: number, y: number} } => {
     const amplitude = waveHeight / 2;
     const halfWaveAngleRad = sectorAngleRad / (2 * waveCount);
     
-    for (let i = 0; i < 2 * waveCount; i++) {
+    let firstPoint = { x: 0, y: 0 };
+    let lastPoint = { x: 0, y: 0 };
+    
+    // Draw 2*waveCount+1 arcs (9 arcs for 4 waves) to ensure left-right symmetry
+    for (let i = 0; i <= 2 * waveCount; i++) {
       // Endpoints on the base circle
       const a1 = startAngleRad + i * halfWaveAngleRad;
       const a2 = startAngleRad + (i + 1) * halfWaveAngleRad;
@@ -275,6 +285,14 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       const p1y = baseR * Math.sin(a1);
       const p2x = baseR * Math.cos(a2);
       const p2y = baseR * Math.sin(a2);
+      
+      // Store first and last points for radial lines
+      if (i === 0) {
+        firstPoint = { x: p1x, y: p1y };
+      }
+      if (i === 2 * waveCount) {
+        lastPoint = { x: p2x, y: p2y };
+      }
       
       // Chord length and midpoint
       const chord = Math.sqrt((p2x - p1x) ** 2 + (p2y - p1y) ** 2);
@@ -325,36 +343,37 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         addArc(lines, cx, cy, arcRadius, arcA2, arcA1);
       }
     }
+    
+    return { firstPoint, lastPoint };
   };
 
-  // Draw outer arc (bottom edge of lampshade)
+   // Draw outer arc (bottom edge of lampshade)
+  let outerFirstPoint = { x: outerR * Math.cos(startAngleRad), y: outerR * Math.sin(startAngleRad) };
+  let outerLastPoint = { x: outerR * Math.cos(startAngleRad + sectorAngleRad), y: outerR * Math.sin(startAngleRad + sectorAngleRad) };
   if (bottomWave) {
-    generateWaveArcs(outerR);
+    const result = generateWaveArcs(outerR);
+    outerFirstPoint = result.firstPoint;
+    outerLastPoint = result.lastPoint;
   } else {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
   // Draw inner arc (top edge of lampshade)
+  let innerFirstPoint = { x: innerR * Math.cos(startAngleRad), y: innerR * Math.sin(startAngleRad) };
+  let innerLastPoint = { x: innerR * Math.cos(startAngleRad + sectorAngleRad), y: innerR * Math.sin(startAngleRad + sectorAngleRad) };
   if (topWave) {
-    generateWaveArcs(innerR);
+    const result = generateWaveArcs(innerR);
+    innerFirstPoint = result.firstPoint;
+    innerLastPoint = result.lastPoint;
   } else {
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw left radial line (from inner to outer at start angle)
-  const leftOuterX = outerR * Math.cos(startAngleRad);
-  const leftOuterY = outerR * Math.sin(startAngleRad);
-  const leftInnerX = innerR * Math.cos(startAngleRad);
-  const leftInnerY = innerR * Math.sin(startAngleRad);
-  addLine(lines, leftOuterX, leftOuterY, leftInnerX, leftInnerY);
-
-  // Draw right radial line (from inner to outer at end angle)
-  const endAngleRad = startAngleRad + sectorAngleRad;
-  const rightOuterX = outerR * Math.cos(endAngleRad);
-  const rightOuterY = outerR * Math.sin(endAngleRad);
-  const rightInnerX = innerR * Math.cos(endAngleRad);
-  const rightInnerY = innerR * Math.sin(endAngleRad);
-  addLine(lines, rightOuterX, rightOuterY, rightInnerX, rightInnerY);
+  // Draw left radial line (connecting first points of inner and outer arcs)
+  addLine(lines, outerFirstPoint.x, outerFirstPoint.y, innerFirstPoint.x, innerFirstPoint.y);
+  
+  // Draw right radial line (connecting last points of inner and outer arcs)
+  addLine(lines, outerLastPoint.x, outerLastPoint.y, innerLastPoint.x, innerLastPoint.y);
 
   // Add text annotation
   const waveInfo = [];
@@ -479,7 +498,9 @@ function addText(lines: string[], x: number, y: number, height: number, text: st
  * Export calculation result as DXF file
  */
 export function exportAsDXF(result: CalculationResult | PolygonLampshadeResult | WaveformLampshadeResult): void {
+  console.log('[DXF] exportAsDXF called with result:', result);
   const dxfContent = generateDXFContent(result);
+  console.log('[DXF] Generated DXF content length:', dxfContent.length);
   const blob = new Blob([dxfContent], { type: "application/dxf" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
