@@ -275,22 +275,37 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     let firstPoint = { x: 0, y: 0 };
     let lastPoint = { x: 0, y: 0 };
     
-    // Draw 2*waveCount+1 arcs (9 arcs for 4 waves) to ensure left-right symmetry
-    for (let i = 0; i <= 2 * waveCount; i++) {
-      // Endpoints on the base circle
+    // Draw 2*waveCount arcs (8 arcs for 4 waves) with phase offset for left-right symmetry
+    // Phase offset π/4 ensures both edges are at the same position on the wave (rising edge of peak)
+    const phaseOffset = Math.PI / 4;
+    
+    for (let i = 0; i < 2 * waveCount; i++) {
+      // Endpoints on the base circle with phase offset
+      const t1 = i / (2 * waveCount);
+      const t2 = (i + 1) / (2 * waveCount);
+      const phase1 = t1 * 2 * waveCount * Math.PI + phaseOffset;
+      const phase2 = t2 * 2 * waveCount * Math.PI + phaseOffset;
+      
+      // Calculate radial offset for each endpoint
+      const offset1 = amplitude * Math.sin(phase1);
+      const offset2 = amplitude * Math.sin(phase2);
+      
       const a1 = startAngleRad + i * halfWaveAngleRad;
       const a2 = startAngleRad + (i + 1) * halfWaveAngleRad;
       
-      const p1x = baseR * Math.cos(a1);
-      const p1y = baseR * Math.sin(a1);
-      const p2x = baseR * Math.cos(a2);
-      const p2y = baseR * Math.sin(a2);
+      const r1 = baseR + offset1;
+      const r2 = baseR + offset2;
+      
+      const p1x = r1 * Math.cos(a1);
+      const p1y = r1 * Math.sin(a1);
+      const p2x = r2 * Math.cos(a2);
+      const p2y = r2 * Math.sin(a2);
       
       // Store first and last points for radial lines
       if (i === 0) {
         firstPoint = { x: p1x, y: p1y };
       }
-      if (i === 2 * waveCount) {
+      if (i === 2 * waveCount - 1) {
         lastPoint = { x: p2x, y: p2y };
       }
       
@@ -310,8 +325,12 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Distance from chord midpoint to arc center
       const d = arcRadius - amplitude;
       
-      // Determine direction: even index = outward (peak), odd = inward (trough)
-      const isOutward = (i % 2 === 0);
+      // Determine direction based on actual radial offset at chord midpoint
+      const tMid = (t1 + t2) / 2;
+      const phaseMid = tMid * 2 * waveCount * Math.PI + phaseOffset;
+      const offsetMid = amplitude * Math.sin(phaseMid);
+      // If offsetMid > 0, the arc bulges outward (peak); if < 0, inward (trough)
+      const isOutward = offsetMid > 0;
       
       let cx: number, cy: number;
       if (isOutward) {
