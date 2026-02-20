@@ -450,8 +450,9 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
       // Distance from chord midpoint to arc center
       const d = arcRadius - amplitude;
       
-      // Determine direction: even index = outward (peak), odd = inward (trough)
-      const isOutward = (i % 2 === 0);
+      // Determine direction: odd index = outward (peak), even = inward (trough)
+      // This makes first half-wave (i=0) a trough, last half-wave (i=2N-1) also a trough
+      const isOutward = (i % 2 === 1);
       
       let cx: number, cy: number;
       if (isOutward) {
