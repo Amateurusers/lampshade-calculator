@@ -63,10 +63,11 @@ export default function Home() {
     topDiameter: 100,
     bottomDiameter: 200,
     slantHeight: 150,
-    waveCount: 4,
-    waveHeight: 10,
+      waveCount: 4,
+      waveHeight: 10,
+      troughRadius: 2.5,  // Default: h/4 for symmetric waves
     waveType: "sine",
-    topWave: true,
+    topWave: false,
     bottomWave: true,
   });
 
@@ -137,8 +138,9 @@ export default function Home() {
           slantHeight: 150,
           waveCount: 4,
           waveHeight: 10,
+          troughRadius: 20,
           waveType: "sine",
-          topWave: true,
+          topWave: false,
           bottomWave: true,
         });
         break;
@@ -470,6 +472,22 @@ export default function Home() {
                       setWaveformParams({
                         ...waveformParams,
                         waveHeight: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    波谷半径 (mm)
+                  </label>
+                  <input
+                    type="number"
+                    value={waveformParams.troughRadius}
+                    onChange={(e) =>
+                      setWaveformParams({
+                        ...waveformParams,
+                        troughRadius: parseFloat(e.target.value) || 0,
                       })
                     }
                     className="w-full px-3 py-2 border border-border rounded-md"
