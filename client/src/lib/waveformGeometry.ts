@@ -149,11 +149,11 @@ export function calculateWaveformGeometry(
   // 5. 计算起始角度（扇形中心对齐y轴，向两侧展开）
   const startAngle = -sectorAngle / 2;
   
-  // 6. 生成所有波谷圆
+  // 6. 生成所有波谷圆（奇数位置：1, 3, 5...）
   const troughCircles: Array<{ x: number; y: number; angle: number; index: number }> = [];
   const circles: WaveCircle[] = [];
   
-  for (let i = 0; i <= divisions; i += 2) {
+  for (let i = 1; i < divisions; i += 2) {
     const angle = startAngle + i * anglePerDivision;
     const angleRad = (angle * Math.PI) / 180;
     
@@ -171,24 +171,51 @@ export function calculateWaveformGeometry(
     });
   }
   
-  // 7. 求解波峰圆
+  // 7. 求解波峰圆（偶数位置：0, 2, 4...包括边界）
   let peakR: number | null = null;
   const peakCircles: WaveCircle[] = [];
   
-  for (let i = 1; i < divisions; i += 2) {
+  for (let i = 0; i <= divisions; i += 2) {
     const angle = startAngle + i * anglePerDivision;
     
     // 找到左右两个波谷圆
-    const leftTroughIndex = Math.floor(i / 2);
-    const rightTroughIndex = leftTroughIndex + 1;
+    // 波峰在偶数位置：0, 2, 4, 6, 8
+    // 波谷在奇数位置：1, 3, 5, 7
+    // 对于i=0：左波谷不存在，右波谷在位置1
+    // 对于i=2：左波谷在位置1，右波谷在位置3
+    // 对于i=4：左波谷在位置3，右波谷在位置5
     
-    if (rightTroughIndex >= troughCircles.length) {
-      console.error(`波峰圆索引 ${i} 超出范围`);
-      continue;
+    let leftTrough, rightTrough;
+    
+    if (i === 0) {
+      // 边界情况：使用第一个波谷圆作为左右波谷
+      if (troughCircles.length === 0) {
+        console.error(`波峰圆索引 ${i} 找不到波谷圆`);
+        continue;
+      }
+      leftTrough = troughCircles[0];
+      rightTrough = troughCircles[0];
+    } else if (i === divisions) {
+      // 边界情况：使用最后一个波谷圆作为左右波谷
+      if (troughCircles.length === 0) {
+        console.error(`波峰圆索引 ${i} 找不到波谷圆`);
+        continue;
+      }
+      leftTrough = troughCircles[troughCircles.length - 1];
+      rightTrough = troughCircles[troughCircles.length - 1];
+    } else {
+      // 中间波峰：查找左右波谷
+      const leftTroughDivision = i - 1;  // 左波谷的分割点索引
+      const rightTroughDivision = i + 1; // 右波谷的分割点索引
+      
+      leftTrough = troughCircles.find(t => t.index === leftTroughDivision);
+      rightTrough = troughCircles.find(t => t.index === rightTroughDivision);
+      
+      if (!leftTrough || !rightTrough) {
+        console.error(`波峰圆索引 ${i} 找不到左右波谷圆`);
+        continue;
+      }
     }
-    
-    const leftTrough = troughCircles[leftTroughIndex];
-    const rightTrough = troughCircles[rightTroughIndex];
     
     // 求解波峰圆半径
     const solvedPeakR = solveThreeCircleTangency(
