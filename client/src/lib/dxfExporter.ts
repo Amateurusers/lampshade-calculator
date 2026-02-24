@@ -324,26 +324,23 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Calculate start point
       let p1;
       if (i === 0) {
-        // First arc: intersect with left boundary line (at higher angle)
-        // Use DXF coordinate system angle directly
-        const lineX = Math.cos(endAngleRad);
-        const lineY = Math.sin(endAngleRad);
+        // First arc: intersect with left boundary line (at endAngleRad = 150°)
+        const theta = endAngleRad;
+        const d = circle.cx * Math.cos(theta) + circle.cy * Math.sin(theta);
+        const c_sq = circle.cx ** 2 + circle.cy ** 2;
+        const discriminant = d ** 2 - c_sq + circle.r ** 2;
         
-        // Calculate intersection of circle with boundary line
-        // Circle center distance from origin
-        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
-        const centerAngle = Math.atan2(circle.cy, circle.cx);
-        const angleDiff = endAngleRad - centerAngle;
-        const perpDist = centerDist * Math.sin(angleDiff);
+        if (discriminant < 0) {
+          console.error('First circle does not intersect with left boundary line');
+          continue;
+        }
         
-        // Distance along the line to the intersection
-        const proj = centerDist * Math.cos(angleDiff);
-        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
-        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
+        // Choose the farther intersection (outer side)
+        const r_intersection = d + Math.sqrt(discriminant);
         
         p1 = {
-          x: dist * lineX,
-          y: dist * lineY
+          x: r_intersection * Math.cos(theta),
+          y: r_intersection * Math.sin(theta)
         };
       } else {
         // Tangent point with previous arc (external tangency)
@@ -367,26 +364,23 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Calculate end point
       let p2;
       if (i === allCircles.length - 1) {
-        // Last arc: intersect with right boundary line (at lower angle)
-        // Use DXF coordinate system angle directly
-        const lineX = Math.cos(startAngleRad);
-        const lineY = Math.sin(startAngleRad);
+        // Last arc: intersect with right boundary line (at startAngleRad = 30°)
+        const theta = startAngleRad;
+        const d = circle.cx * Math.cos(theta) + circle.cy * Math.sin(theta);
+        const c_sq = circle.cx ** 2 + circle.cy ** 2;
+        const discriminant = d ** 2 - c_sq + circle.r ** 2;
         
-        // Calculate intersection of circle with boundary line
-        // Circle center distance from origin
-        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
-        const centerAngle = Math.atan2(circle.cy, circle.cx);
-        const angleDiff = startAngleRad - centerAngle;
-        const perpDist = centerDist * Math.sin(angleDiff);
+        if (discriminant < 0) {
+          console.error('Last circle does not intersect with right boundary line');
+          continue;
+        }
         
-        // Distance along the line to the intersection
-        const proj = centerDist * Math.cos(angleDiff);
-        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
-        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
+        // Choose the farther intersection (outer side)
+        const r_intersection = d + Math.sqrt(discriminant);
         
         p2 = {
-          x: dist * lineX,
-          y: dist * lineY
+          x: r_intersection * Math.cos(theta),
+          y: r_intersection * Math.sin(theta)
         };
       } else {
         // Tangent point with next arc (external tangency)
@@ -485,18 +479,18 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw left radial line (from inner to outer at start angle)
-  const leftOuterX = outerR * Math.cos(startAngleRad);
-  const leftOuterY = outerR * Math.sin(startAngleRad);
-  const leftInnerX = innerR * Math.cos(startAngleRad);
-  const leftInnerY = innerR * Math.sin(startAngleRad);
+  // Draw left radial line (at higher angle, x<0)
+  const leftOuterX = outerR * Math.cos(endAngleRad);
+  const leftOuterY = outerR * Math.sin(endAngleRad);
+  const leftInnerX = innerR * Math.cos(endAngleRad);
+  const leftInnerY = innerR * Math.sin(endAngleRad);
   addLine(lines, leftOuterX, leftOuterY, leftInnerX, leftInnerY);
 
-  // Draw right radial line (from inner to outer at end angle)
-  const rightOuterX = outerR * Math.cos(endAngleRad);
-  const rightOuterY = outerR * Math.sin(endAngleRad);
-  const rightInnerX = innerR * Math.cos(endAngleRad);
-  const rightInnerY = innerR * Math.sin(endAngleRad);
+  // Draw right radial line (at lower angle, x>0)
+  const rightOuterX = outerR * Math.cos(startAngleRad);
+  const rightOuterY = outerR * Math.sin(startAngleRad);
+  const rightInnerX = innerR * Math.cos(startAngleRad);
+  const rightInnerY = innerR * Math.sin(startAngleRad);
   addLine(lines, rightOuterX, rightOuterY, rightInnerX, rightInnerY);
 
   // Add text annotation

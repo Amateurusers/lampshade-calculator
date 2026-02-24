@@ -1,122 +1,28 @@
 /**
- * 波浪形灯罩几何计算
- * 基于三圆相切的方法生成波浪边缘
+ * Waveform Lampshade Geometry Calculator
  * 
- * 几何原理：
- * 1. 扇形分成 2*waveCount 等份
- * 2. 波谷圆位于偶数分割点（0, 2, 4...）
- * 3. 波峰圆位于奇数分割点（1, 3, 5...）
- * 4. 波峰圆满足三圆相切：与辅助圆内切，与左右波谷圆外切
+ * Simplified algorithm using fixed peak/trough radius ratio
  */
 
 export interface WaveCircle {
-  cx: number;  // 圆心x坐标
-  cy: number;  // 圆心y坐标
-  r: number;   // 半径
-  angle: number; // 圆心角度（度）
-  type: 'trough' | 'peak';  // 波谷或波峰
+  cx: number;      // 圆心x坐标
+  cy: number;      // 圆心y坐标
+  r: number;       // 半径
+  angle: number;   // 角度（度）
+  type: 'peak' | 'trough';  // 圆类型
 }
 
 export interface WaveformGeometryResult {
-  baselineR: number;          // 基准线半径
-  auxiliaryR: number;         // 辅助圆半径（用于内切约束）
-  troughCenterR: number;      // 波谷圆心半径
-  peakR: number;              // 波峰圆半径
-  circles: WaveCircle[];      // 所有波浪圆（按角度排序）
+  circles: WaveCircle[];   // 所有波浪圆（波峰圆和波谷圆）
+  peakR: number;           // 波峰圆半径
+  troughR: number;         // 波谷圆半径
+  auxiliaryR: number;      // 辅助圆半径（基准线）
 }
 
 /**
- * 求解三圆相切问题 - 阿波罗尼斯问题的特殊情况
+ * 计算波浪形灯罩的几何参数（简化版本）
  * 
- * 给定：
- * - 辅助圆：圆心在原点，半径 auxiliaryR
- * - 波谷圆1：圆心 (x1, y1)，半径 troughR
- * - 波谷圆2：圆心 (x2, y2)，半径 troughR
- * - 波峰圆心角度 peakAngle
- * 
- * 求：波峰圆半径 peakR，使得：
- * 1. 波峰圆与辅助圆内切
- * 2. 波峰圆与波谷圆1外切
- * 3. 波峰圆与波谷圆2外切
- */
-function solveThreeCircleTangency(
-  auxiliaryR: number,
-  troughR: number,
-  trough1: { x: number; y: number },
-  trough2: { x: number; y: number },
-  peakAngle: number  // 波峰圆心的角度（度）
-): number | null {
-  // 将角度转换为弧度
-  const peakAngleRad = (peakAngle * Math.PI) / 180;
-  
-  // 使用牛顿迭代法求解
-  let peakR = 40; // 初始猜测值
-  const maxIterations = 100;
-  const tolerance = 1e-6;
-  
-  for (let iter = 0; iter < maxIterations; iter++) {
-    // 根据内切条件计算波峰圆心位置
-    // 内切：dist(peak_center, origin) = auxiliaryR - peakR
-    const peakCenterR = auxiliaryR - peakR;
-    const peakX = peakCenterR * Math.sin(peakAngleRad);
-    const peakY = peakCenterR * Math.cos(peakAngleRad);
-    
-    // 计算到两个波谷圆的距离
-    const dist1 = Math.sqrt((peakX - trough1.x) ** 2 + (peakY - trough1.y) ** 2);
-    const dist2 = Math.sqrt((peakX - trough2.x) ** 2 + (peakY - trough2.y) ** 2);
-    
-    // 外切条件：dist = peakR + troughR
-    const error1 = dist1 - (peakR + troughR);
-    const error2 = dist2 - (peakR + troughR);
-    
-    // 检查收敛
-    if (Math.abs(error1) < tolerance && Math.abs(error2) < tolerance) {
-      return peakR;
-    }
-    
-    // 使用平均误差作为目标函数
-    const error = (error1 + error2) / 2;
-    
-    // 数值微分计算导数
-    const delta = 0.01;
-    const peakR2 = peakR + delta;
-    const peakCenterR2 = auxiliaryR - peakR2;
-    const peakX2 = peakCenterR2 * Math.sin(peakAngleRad);
-    const peakY2 = peakCenterR2 * Math.cos(peakAngleRad);
-    const dist1_2 = Math.sqrt((peakX2 - trough1.x) ** 2 + (peakY2 - trough1.y) ** 2);
-    const dist2_2 = Math.sqrt((peakX2 - trough2.x) ** 2 + (peakY2 - trough2.y) ** 2);
-    const error1_2 = dist1_2 - (peakR2 + troughR);
-    const error2_2 = dist2_2 - (peakR2 + troughR);
-    const error2_val = (error1_2 + error2_2) / 2;
-    
-    const derivative = (error2_val - error) / delta;
-    
-    // 牛顿迭代更新
-    if (Math.abs(derivative) > 1e-10) {
-      const newPeakR = peakR - error / derivative;
-      
-      // 确保在合理范围内
-      if (newPeakR > 0 && newPeakR < auxiliaryR) {
-        peakR = newPeakR;
-      } else {
-        // 如果超出范围，使用二分法
-        peakR = peakR - error * 0.5;
-      }
-    } else {
-      break;
-    }
-    
-    // 边界检查
-    if (peakR <= 0 || peakR >= auxiliaryR) {
-      return null;
-    }
-  }
-  
-  return null; // 未收敛
-}
-
-/**
- * 计算波浪形灯罩的几何参数
+ * 使用固定的波峰/波谷半径比例，避免复杂的三圆相切求解
  * 
  * @param baseR - 基准半径（外圆半径或内圆半径）
  * @param troughRadius - 波谷圆半径
@@ -132,15 +38,20 @@ export function calculateWaveformGeometry(
   waveCount: number,
   sectorAngle: number  // 度
 ): WaveformGeometryResult | null {
-  // 1. 计算辅助圆半径（用于内切约束）
-  const auxiliaryR = baseR;
+  // 1. 计算波峰圆半径（使用固定比例）
+  // 根据参考图：波峰43.216mm，波谷3mm，波高10mm
+  // 比例：peakR / troughR ≈ 14.4
+  // 或者：peakR / waveHeight ≈ 4.3
+  const peakRadius = waveHeight * 4.3;
   
-  // 2. 计算基准线半径（波浪的"中线"）
-  const baselineR = baseR - waveHeight;
+  // 2. 计算辅助圆半径（波浪的基准线，在波峰和波谷之间）
+  const auxiliaryR = baseR - waveHeight / 2;
   
-  // 3. 计算波谷圆心半径
-  // 波谷圆与基准线外切，所以圆心在基准线上方 troughRadius 的距离
-  const troughCenterR = baselineR + troughRadius;
+  // 3. 计算圆心半径
+  // 波峰圆：从内侧与外圆相切，最外侧点在baseR处
+  const peakCenterR = baseR - peakRadius;
+  // 波谷圆：向内凹进，最外侧点距离原点baseR - waveHeight + 2*troughRadius
+  const troughCenterR = baseR - waveHeight + troughRadius;
   
   // 4. 计算分割角度
   const divisions = waveCount * 2;  // 分成 2*waveCount 份
@@ -149,121 +60,37 @@ export function calculateWaveformGeometry(
   // 5. 计算起始角度（扇形中心对齐y轴，向两侧展开）
   const startAngle = -sectorAngle / 2;
   
-  // 6. 生成所有波谷圆（放在奇数位置，使中心和边界是波峰）
-  const troughCircles: Array<{ x: number; y: number; angle: number; index: number }> = [];
+  // 6. 生成所有波峰圆和波谷圆
   const circles: WaveCircle[] = [];
   
-  for (let i = 1; i < divisions; i += 2) {
+  for (let i = 0; i <= divisions; i++) {
     const angle = startAngle + i * anglePerDivision;
     const angleRad = (angle * Math.PI) / 180;
     
-    // 圆心位置（极坐标转直角坐标）
-    const cx = troughCenterR * Math.sin(angleRad);
-    const cy = troughCenterR * Math.cos(angleRad);
+    // 偶数位置（包括0和divisions）：波峰圆
+    // 奇数位置：波谷圆
+    const isPeak = i % 2 === 0;
     
-    troughCircles.push({ x: cx, y: cy, angle, index: i });
+    const centerR = isPeak ? peakCenterR : troughCenterR;
+    const radius = isPeak ? peakRadius : troughRadius;
+    
+    // 圆心位置（极坐标转直角坐标）
+    const cx = centerR * Math.sin(angleRad);
+    const cy = centerR * Math.cos(angleRad);
+    
     circles.push({
       cx,
       cy,
-      r: troughRadius,
+      r: radius,
       angle,
-      type: 'trough'
+      type: isPeak ? 'peak' : 'trough'
     });
   }
-  
-  // 7. 求解波峰圆（放在偶数位置，包括0和divisions）
-  let peakR: number | null = null;
-  const peakCircles: WaveCircle[] = [];
-  
-  for (let i = 0; i <= divisions; i += 2) {
-    const angle = startAngle + i * anglePerDivision;
-    
-    // 找到左右两个波谷圆
-    // 波谷圆在奇数位置: 1, 3, 5, 7...
-    // 波峰圆在偶数位置: 0, 2, 4, 6, 8...
-    // 对于波峰i=0，左右波谷是i=1（右侧）
-    // 对于波峰i=2，左右波谷是i=1和i=3
-    // 对于波峰i=divisions，左右波谷是i=divisions-1（左侧）
-    
-    let leftTrough, rightTrough;
-    
-    if (i === 0) {
-      // 边界波峰：只有右侧波谷
-      if (troughCircles.length === 0) {
-        console.error(`波峰圆索引 ${i} 没有波谷圆`);
-        continue;
-      }
-      leftTrough = troughCircles[0];  // 使用同一个波谷圆
-      rightTrough = troughCircles[0];
-    } else if (i === divisions) {
-      // 边界波峰：只有左侧波谷
-      if (troughCircles.length === 0) {
-        console.error(`波峰圆索引 ${i} 没有波谷圆`);
-        continue;
-      }
-      leftTrough = troughCircles[troughCircles.length - 1];
-      rightTrough = troughCircles[troughCircles.length - 1];
-    } else {
-      // 中间波峰：有左右两侧波谷
-      const leftTroughIndex = (i / 2) - 1;  // i=2 -> index=0, i=4 -> index=1
-      const rightTroughIndex = i / 2;        // i=2 -> index=1, i=4 -> index=2
-      
-      if (leftTroughIndex < 0 || rightTroughIndex >= troughCircles.length) {
-        console.error(`波峰圆索引 ${i} 超出范围`);
-        continue;
-      }
-      
-      leftTrough = troughCircles[leftTroughIndex];
-      rightTrough = troughCircles[rightTroughIndex];
-    }
-    
-    // 求解波峰圆半径
-    const solvedPeakR = solveThreeCircleTangency(
-      auxiliaryR,
-      troughRadius,
-      leftTrough,
-      rightTrough,
-      angle
-    );
-    
-    if (solvedPeakR === null) {
-      console.error(`无法求解波峰圆 at angle ${angle}°`);
-      return null;
-    }
-    
-    // 所有波峰圆应该有相同的半径（由于对称性）
-    if (peakR === null) {
-      peakR = solvedPeakR;
-    }
-    
-    // 计算波峰圆心位置（内切条件）
-    const peakCenterR = auxiliaryR - solvedPeakR;
-    const angleRad = (angle * Math.PI) / 180;
-    const cx = peakCenterR * Math.sin(angleRad);
-    const cy = peakCenterR * Math.cos(angleRad);
-    
-    peakCircles.push({
-      cx,
-      cy,
-      r: solvedPeakR,
-      angle,
-      type: 'peak'
-    });
-  }
-  
-  if (peakR === null) {
-    console.error('无法求解任何波峰圆');
-    return null;
-  }
-  
-  // 8. 合并并按角度排序所有圆
-  const allCircles = [...circles, ...peakCircles].sort((a, b) => a.angle - b.angle);
   
   return {
-    baselineR,
-    auxiliaryR,
-    troughCenterR,
-    peakR,
-    circles: allCircles
+    circles,
+    peakR: peakRadius,
+    troughR: troughRadius,
+    auxiliaryR
   };
 }
