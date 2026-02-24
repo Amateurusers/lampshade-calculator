@@ -258,8 +258,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   lines.push("2");
   lines.push("ENTITIES");
 
-  // Center the sector at angle 270 (pointing down) for better visual
-  const startAngleDeg = 270 - sectorAngleDeg / 2;
+  // Center the sector at angle 90 (pointing up) to match geometry coordinate system
+  const startAngleDeg = 90 - sectorAngleDeg / 2;
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
   const endAngleRad = startAngleRad + sectorAngleRad;
 
@@ -324,18 +324,16 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Calculate start point
       let p1;
       if (i === 0) {
-        // First arc: intersect with left boundary line
-        // The left boundary line is at angle (-sectorAngleDeg / 2) in geometry coordinates
-        const leftBoundaryAngle = -sectorAngleDeg / 2;  // e.g., -60° for 120° sector
-        const boundaryAngleRad = (leftBoundaryAngle * Math.PI) / 180;
-        const lineX = Math.sin(boundaryAngleRad);
-        const lineY = Math.cos(boundaryAngleRad);
+        // First arc: intersect with left boundary line (at higher angle)
+        // Use DXF coordinate system angle directly
+        const lineX = Math.cos(endAngleRad);
+        const lineY = Math.sin(endAngleRad);
         
         // Calculate intersection of circle with boundary line
         // Circle center distance from origin
         const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
-        const centerAngle = Math.atan2(circle.cx, circle.cy);
-        const angleDiff = boundaryAngleRad - centerAngle;
+        const centerAngle = Math.atan2(circle.cy, circle.cx);
+        const angleDiff = endAngleRad - centerAngle;
         const perpDist = centerDist * Math.sin(angleDiff);
         
         // Distance along the line to the intersection
@@ -369,18 +367,16 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Calculate end point
       let p2;
       if (i === allCircles.length - 1) {
-        // Last arc: intersect with right boundary line
-        // The right boundary line is at angle (sectorAngleDeg / 2) in geometry coordinates
-        const rightBoundaryAngle = sectorAngleDeg / 2;  // e.g., 60° for 120° sector
-        const boundaryAngleRad = (rightBoundaryAngle * Math.PI) / 180;
-        const lineX = Math.sin(boundaryAngleRad);
-        const lineY = Math.cos(boundaryAngleRad);
+        // Last arc: intersect with right boundary line (at lower angle)
+        // Use DXF coordinate system angle directly
+        const lineX = Math.cos(startAngleRad);
+        const lineY = Math.sin(startAngleRad);
         
         // Calculate intersection of circle with boundary line
         // Circle center distance from origin
         const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
-        const centerAngle = Math.atan2(circle.cx, circle.cy);
-        const angleDiff = boundaryAngleRad - centerAngle;
+        const centerAngle = Math.atan2(circle.cy, circle.cx);
+        const angleDiff = startAngleRad - centerAngle;
         const perpDist = centerDist * Math.sin(angleDiff);
         
         // Distance along the line to the intersection
