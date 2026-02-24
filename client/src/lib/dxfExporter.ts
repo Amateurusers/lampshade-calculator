@@ -321,11 +321,6 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     for (let i = 0; i < allCircles.length; i++) {
       const circle = allCircles[i];
       
-      // 跳过边界波谷圆（第二个和倒数第二个圆）
-      if (i === 1 || i === allCircles.length - 2) {
-        continue;
-      }
-      
       // Calculate start point
       let p1;
       if (i === 0) {
@@ -352,18 +347,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         };
       } else {
         // Tangent point with previous arc (external tangency)
-        // 跳过被删除的边界波谷圆
-        let prevIndex = i - 1;
-        while (prevIndex === 1 || prevIndex === allCircles.length - 2) {
-          prevIndex--;
-        }
-        
-        if (prevIndex < 0) {
-          console.error('No valid previous circle');
-          continue;
-        }
-        
-        const prev = allCircles[prevIndex];
+        const prev = allCircles[i - 1];
         const dx = circle.cx - prev.cx;
         const dy = circle.cy - prev.cy;
         const dist = Math.sqrt(dx ** 2 + dy ** 2);
@@ -382,37 +366,23 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       
       // Calculate end point
       let p2;
-      if (i === 0) {
-        // 边界波峰圆（左侧）：p2与右边界线相交（较小角度）
+      if (i === allCircles.length - 1) {
+        // Last arc: intersect with right boundary line (at lower angle)
+        // Use DXF coordinate system angle directly
         const lineX = Math.cos(startAngleRad);
         const lineY = Math.sin(startAngleRad);
         
+        // Calculate intersection of circle with boundary line
+        // Circle center distance from origin
         const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
         const centerAngle = Math.atan2(circle.cy, circle.cx);
         const angleDiff = startAngleRad - centerAngle;
         const perpDist = centerDist * Math.sin(angleDiff);
         
+        // Distance along the line to the intersection
         const proj = centerDist * Math.cos(angleDiff);
         const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
-        const dist = proj - offset;
-        
-        p2 = {
-          x: dist * lineX,
-          y: dist * lineY
-        };
-      } else if (i === allCircles.length - 1) {
-        // 边界波峰圆（右侧）：p2与右边界线相交（较小角度）
-        const lineX = Math.cos(startAngleRad);
-        const lineY = Math.sin(startAngleRad);
-        
-        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
-        const centerAngle = Math.atan2(circle.cy, circle.cx);
-        const angleDiff = startAngleRad - centerAngle;
-        const perpDist = centerDist * Math.sin(angleDiff);
-        
-        const proj = centerDist * Math.cos(angleDiff);
-        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
-        const dist = proj - offset;
+        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
         
         p2 = {
           x: dist * lineX,
@@ -420,18 +390,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         };
       } else {
         // Tangent point with next arc (external tangency)
-        // 跳过被删除的边界波谷圆
-        let nextIndex = i + 1;
-        while (nextIndex === 1 || nextIndex === allCircles.length - 2) {
-          nextIndex++;
-        }
-        
-        if (nextIndex >= allCircles.length) {
-          console.error('No valid next circle');
-          continue;
-        }
-        
-        const next = allCircles[nextIndex];
+        const next = allCircles[i + 1];
         const dx = next.cx - circle.cx;
         const dy = next.cy - circle.cy;
         const dist = Math.sqrt(dx ** 2 + dy ** 2);
