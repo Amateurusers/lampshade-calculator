@@ -261,89 +261,101 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   const startAngleDeg = 270 - sectorAngleDeg / 2;
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
 
-  // Helper: generate tangent arc waves using three-circle tangency model
-  // Trough circle, peak circle, and base circle are mutually tangent
+  // Helper: calculate intersection of two circles
+  const circleIntersection = (cx1: number, cy1: number, r1: number, cx2: number, cy2: number, r2: number, chooseOuter: boolean) => {
+    const d = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
+    const a = (r1 ** 2 - r2 ** 2 + d ** 2) / (2 * d);
+    const h = Math.sqrt(Math.max(0, r1 ** 2 - a ** 2));
+    
+    const px = cx1 + a * (cx2 - cx1) / d;
+    const py = cy1 + a * (cy2 - cy1) / d;
+    
+    const x1 = px + h * (cy2 - cy1) / d;
+    const y1 = py - h * (cx2 - cx1) / d;
+    const x2 = px - h * (cy2 - cy1) / d;
+    const y2 = py + h * (cx2 - cx1) / d;
+    
+    // Choose the intersection point farther from or closer to origin
+    const r1_sq = x1 ** 2 + y1 ** 2;
+    const r2_sq = x2 ** 2 + y2 ** 2;
+    
+    return chooseOuter ? (r1_sq > r2_sq ? {x: x1, y: y1} : {x: x2, y: y2}) : (r1_sq < r2_sq ? {x: x1, y: y1} : {x: x2, y: y2});
+  };
+
+  // Helper: generate continuous tangent arc waves
+  // All arcs are connected end-to-end to form a continuous wavy curve
   const generateWaveArcs = (baseR: number) => {
     const troughR = result.troughRadius;
     const peakR = result.peakRadius;
     
-    // Divide sector into N segments (one per wave)
-    const segmentAngle = sectorAngleRad / waveCount;
+    // Divid    // Generate 2N+1 half-waves to ensure symmetry
+    // Start and end at trough lowest points
+    const numHalfWaves = 2 * waveCount + 1;   const halfWaveAngle = sectorAngleRad / numHalfWaves;
     
-    for (let i = 0; i < waveCount; i++) {
-      // Center angle of this wave segment
-      const centerAngle = startAngleRad + (i + 0.5) * segmentAngle;
+    // Calculate all arc centers first
+    const arcCenters: Array<{cx: number, cy: number, r: number, isTrough: boolean}> = [];
+    for (let i = 0; i < numHalfWaves; i++) {
+      const isTrough = (i % 2 === 0);
+      const arcRadius = isTrough ? troughR : peakR;
+      const centerR = isTrough ? (baseR - arcRadius) : (baseR + arcRadius);
+      const centerAngle = startAngleRad + (i + 0.5) * halfWaveAngle;
       
-      // Trough circle center: inside the base circle, tangent to it
-      const troughCenterR = baseR - troughR;
-      const troughCx = troughCenterR * Math.cos(centerAngle);
-      const troughCy = troughCenterR * Math.sin(centerAngle);
+      arcCenters.push({
+        cx: centerR * Math.cos(centerAngle),
+        cy: centerR * Math.sin(centerAngle),
+        r: arcRadius,
+        isTrough
+      });
+    }
+    
+    // Draw each arc with proper start/end points
+    for (let i = 0; i < numHalfWaves; i++) {
+      const {cx, cy, r, isTrough} = arcCenters[i];
       
-      // Peak circle center: outside the base circle, tangent to it
-      const peakCenterR = baseR + peakR;
-      const peakCx = peakCenterR * Math.cos(centerAngle);
-      const peakCy = peakCenterR * Math.sin(centerAngle);
+      // Calculate start point
+      let p1x, p1y;
+      if (i === 0) {
+        // First arc: start at trough lowest point
+        const angle = startAngleRad + (0.5 * sectorAngleRad / numHalfWaves);
+        const distance = baseR - waveHeight / 2;
+        p1x = distance * Math.cos(angle);
+        p1y = distance * Math.sin(angle);
+      } else {
+        // Calculate intersection with previous arc
+        const prev = arcCenters[i - 1];
+        const intersection = circleIntersection(prev.cx, prev.cy, prev.r, cx, cy, r, true);
+        p1x = intersection.x;
+        p1y = intersection.y;
+      }
       
-      // Calculate the tangent point between trough and peak circles
-      // The tangent point lies on the line connecting the two centers
-      // Distance from trough center to tangent point = troughR
-      const totalDist = peakCenterR - troughCenterR; // = peakR + troughR
-      const tangentX = troughCx + (troughR / totalDist) * (peakCx - troughCx);
-      const tangentY = troughCy + (troughR / totalDist) * (peakCy - troughCy);
+      // Calculate end point
+      let p2x, p2y;
+      if (i === numHalfWaves - 1) {
+        // Last arc: end at trough lowest point
+        const angle = startAngleRad + ((numHalfWaves - 0.5) * sectorAngleRad / numHalfWaves);
+        const distance = baseR - waveHeight / 2;
+        p2x = distance * Math.cos(angle);
+        p2y = distance * Math.sin(angle);
+      } else {
+        // Calculate intersection with next arc
+        const next = arcCenters[i + 1];
+        const intersection = circleIntersection(cx, cy, r, next.cx, next.cy, next.r, true);
+        p2x = intersection.x;
+        p2y = intersection.y;
+      }
       
-      // Calculate angle of tangent point relative to each circle center
-      const tangentAngleTrough = Math.atan2(tangentY - troughCy, tangentX - troughCx) * 180 / Math.PI;
-      const tangentAnglePeak = Math.atan2(tangentY - peakCy, tangentX - peakCx) * 180 / Math.PI;
+      // Calculate DXF ARC angles (relative to arc center)
+      let a1 = Math.atan2(p1y - cy, p1x - cx) * 180 / Math.PI;
+      let a2 = Math.atan2(p2y - cy, p2x - cx) * 180 / Math.PI;
       
-      // Calculate the angular span for each arc
-      // The trough arc should span from the previous wave's peak-trough tangent point
-      // to the current wave's trough-peak tangent point
-      
-      // For simplicity, we use a symmetric model:
-      // Each wave spans segmentAngle, divided equally between trough and peak
-      const halfSegment = segmentAngle / 2;
-      
-      // Trough arc: from (centerAngle - halfSegment) to centerAngle
-      const troughStartAngle = centerAngle - halfSegment;
-      const troughEndAngle = centerAngle;
-      
-      // Calculate trough arc endpoints on the base circle
-      const troughP1x = baseR * Math.cos(troughStartAngle);
-      const troughP1y = baseR * Math.sin(troughStartAngle);
-      const troughP2x = baseR * Math.cos(troughEndAngle);
-      const troughP2y = baseR * Math.sin(troughEndAngle);
-      
-      // Calculate DXF ARC angles for trough (relative to trough center)
-      let troughA1 = Math.atan2(troughP1y - troughCy, troughP1x - troughCx) * 180 / Math.PI;
-      let troughA2 = Math.atan2(troughP2y - troughCy, troughP2x - troughCx) * 180 / Math.PI;
-      if (troughA1 < 0) troughA1 += 360;
-      if (troughA2 < 0) troughA2 += 360;
-      
-      // Ensure CCW direction
-      if (troughA2 < troughA1) troughA2 += 360;
-      
-      addArc(lines, troughCx, troughCy, troughR, troughA1, troughA2);
-      
-      // Peak arc: from centerAngle to (centerAngle + halfSegment)
-      const peakStartAngle = centerAngle;
-      const peakEndAngle = centerAngle + halfSegment;
-      
-      // Calculate peak arc endpoints on the base circle
-      const peakP1x = baseR * Math.cos(peakStartAngle);
-      const peakP1y = baseR * Math.sin(peakStartAngle);
-      const peakP2x = baseR * Math.cos(peakEndAngle);
-      const peakP2y = baseR * Math.sin(peakEndAngle);
-      
-      // Calculate DXF ARC angles for peak (relative to peak center)
-      let peakA1 = Math.atan2(peakP1y - peakCy, peakP1x - peakCx) * 180 / Math.PI;
-      let peakA2 = Math.atan2(peakP2y - peakCy, peakP2x - peakCx) * 180 / Math.PI;
-      if (peakA1 < 0) peakA1 += 360;
-      if (peakA2 < 0) peakA2 += 360;
+      // Normalize angles to [0, 360)
+      if (a1 < 0) a1 += 360;
+      if (a2 < 0) a2 += 360;
       
       // Ensure CCW direction
-      if (peakA2 < peakA1) peakA2 += 360;
+      if (a2 < a1) a2 += 360;
       
-      addArc(lines, peakCx, peakCy, peakR, peakA1, peakA2);
+      addArc(lines, cx, cy, r, a1, a2);
     }
   };
 
