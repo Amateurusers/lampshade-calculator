@@ -1,6 +1,7 @@
-import { CalculationResult } from "./lampshadeCalculator";
+import type { CalculationResult } from "./lampshadeCalculator";
 import { PolygonLampshadeResult } from "./polygonLampshadeCalculator";
 import { WaveformLampshadeResult } from "./waveformLampshadeCalculator";
+import { calculateWaveformGeometry } from "./waveformGeometry";
 
 /**
  * DXF Exporter for Lampshade Unfolding Pattern
@@ -260,6 +261,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   // Center the sector at angle 270 (pointing down) for better visual
   const startAngleDeg = 270 - sectorAngleDeg / 2;
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
+  const endAngleRad = startAngleRad + sectorAngleRad;
 
   // Helper: calculate intersection of two circles
   const circleIntersection = (cx1: number, cy1: number, r1: number, cx2: number, cy2: number, r2: number, chooseOuter: boolean) => {
@@ -282,107 +284,141 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     return chooseOuter ? (r1_sq > r2_sq ? {x: x1, y: y1} : {x: x2, y: y2}) : (r1_sq < r2_sq ? {x: x1, y: y1} : {x: x2, y: y2});
   };
 
-  // Helper: generate continuous tangent arc waves using center trajectory method
-  // All arc centers lie on specific circular trajectories
+  // Helper: generate continuous tangent arc waves using three-circle tangency
   const generateWaveArcs = (baseR: number) => {
-    console.log('generateWaveArcs called with baseR=', baseR, 'bottomWave=', bottomWave, 'topWave=', topWave);
     const troughR = result.troughRadius;
-    const peakR = result.peakRadius;
     
-    // Calculate center trajectory radii
-    const R_min = baseR - waveHeight / 2;  // Trough lowest point radius
-    const R_max = baseR + waveHeight / 2;  // Peak highest point radius
-    const R_trough_center = R_min + troughR;  // Trough center trajectory radius
-    const R_peak_center = R_max - peakR;      // Peak center trajectory radius
+    // Calculate wave geometry using three-circle tangency
+    const geometry = calculateWaveformGeometry(
+      baseR,
+      troughR,
+      waveHeight,
+      waveCount,
+      sectorAngleDeg
+    );
     
-    // Use 2N+1 arcs for symmetry (start and end with trough)
-    const numArcs = 2 * waveCount + 1;
+    if (!geometry) {
+      console.error('Failed to calculate waveform geometry');
+      return [];
+    }
     
-    // Divide the sector angle evenly
-    const angleStep = (endAngleRad - startAngleRad) / numArcs;
+    // Use geometry coordinates directly (no rotation needed)
+    // Geometry already has correct circle centers in Cartesian coordinates
+    const allCircles: Array<{cx: number, cy: number, r: number, angle: number}> = [];
     
-    // Calculate all arc centers first
-    const centers: Array<{cx: number, cy: number, r: number, isTrough: boolean}> = [];
-    for (let i = 0; i < numArcs; i++) {
-      const isTrough = (i % 2 === 0);
-      const centerAngle = startAngleRad + (i + 0.5) * angleStep;
-      const centerR = isTrough ? R_trough_center : R_peak_center;
-      const arcR = isTrough ? troughR : peakR;
-      
-      centers.push({
-        cx: centerR * Math.cos(centerAngle),
-        cy: centerR * Math.sin(centerAngle),
-        r: arcR,
-        isTrough
+    for (const circle of geometry.circles) {
+      allCircles.push({
+        cx: circle.cx,
+        cy: circle.cy,
+        r: circle.r,
+        angle: circle.angle
       });
     }
     
-    // Helper: calculate tangent point between two circles
-    const calcTangentPoint = (cx1: number, cy1: number, r1: number, cx2: number, cy2: number, r2: number) => {
-      const d = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
-      const t = r1 / d;
-      return {
-        x: cx1 + t * (cx2 - cx1),
-        y: cy1 + t * (cy2 - cy1)
-      };
-    };
-    
-    // Helper: calculate intersection of radial line and circle (choose farther point)
-    const calcRadialIntersection = (angle: number, cx: number, cy: number, r: number) => {
-      const d_center = Math.sqrt(cx ** 2 + cy ** 2);
-      const angle_center = Math.atan2(cy, cx);
-      const delta = angle - angle_center;
-      
-      const proj = d_center * Math.cos(delta);
-      const perp = d_center * Math.sin(delta);
-      
-      if (Math.abs(perp) > r) {
-        console.error('Radial line does not intersect circle:', {angle, cx, cy, r, perp: Math.abs(perp)});
-        return null;
-      }
-      
-      const d = proj + Math.sqrt(r ** 2 - perp ** 2);
-      console.log('Radial intersection OK:', {angle, d, x: d * Math.cos(angle), y: d * Math.sin(angle)});
-      return {
-        x: d * Math.cos(angle),
-        y: d * Math.sin(angle)
-      };
-    };
-    
-    // Calculate arc endpoints
+    // Calculate arc endpoints using tangent conditions
     const arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}> = [];
     
-    for (let i = 0; i < numArcs; i++) {
-      const {cx, cy, r} = centers[i];
+    for (let i = 0; i < allCircles.length; i++) {
+      const circle = allCircles[i];
       
       // Calculate start point
       let p1;
       if (i === 0) {
-        // First arc: intersect with left radial line
-        p1 = calcRadialIntersection(startAngleRad, cx, cy, r);
-        if (!p1) break;
+        // First arc: intersect with left boundary line
+        // The left boundary line is at angle (-sectorAngleDeg / 2) in geometry coordinates
+        const leftBoundaryAngle = -sectorAngleDeg / 2;  // e.g., -60° for 120° sector
+        const boundaryAngleRad = (leftBoundaryAngle * Math.PI) / 180;
+        const lineX = Math.sin(boundaryAngleRad);
+        const lineY = Math.cos(boundaryAngleRad);
+        
+        // Calculate intersection of circle with boundary line
+        // Circle center distance from origin
+        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
+        const centerAngle = Math.atan2(circle.cx, circle.cy);
+        const angleDiff = boundaryAngleRad - centerAngle;
+        const perpDist = centerDist * Math.sin(angleDiff);
+        
+        // Distance along the line to the intersection
+        const proj = centerDist * Math.cos(angleDiff);
+        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
+        const dist = proj + offset;  // Choose the farther intersection (outer side)
+        
+        p1 = {
+          x: dist * lineX,
+          y: dist * lineY
+        };
       } else {
-        // Tangent point with previous arc
-        const prev = centers[i - 1];
-        p1 = calcTangentPoint(prev.cx, prev.cy, prev.r, cx, cy, r);
+        // Tangent point with previous arc (external tangency)
+        const prev = allCircles[i - 1];
+        const dx = circle.cx - prev.cx;
+        const dy = circle.cy - prev.cy;
+        const dist = Math.sqrt(dx ** 2 + dy ** 2);
+        
+        if (dist > 0) {
+          const t = prev.r / dist;
+          p1 = {
+            x: prev.cx + t * dx,
+            y: prev.cy + t * dy
+          };
+        } else {
+          console.error('Circles have same center');
+          continue;
+        }
       }
       
       // Calculate end point
       let p2;
-      if (i === numArcs - 1) {
-        // Last arc: intersect with right radial line
-        p2 = calcRadialIntersection(endAngleRad, cx, cy, r);
-        if (!p2) break;
+      if (i === allCircles.length - 1) {
+        // Last arc: intersect with right boundary line
+        // The right boundary line is at angle (sectorAngleDeg / 2) in geometry coordinates
+        const rightBoundaryAngle = sectorAngleDeg / 2;  // e.g., 60° for 120° sector
+        const boundaryAngleRad = (rightBoundaryAngle * Math.PI) / 180;
+        const lineX = Math.sin(boundaryAngleRad);
+        const lineY = Math.cos(boundaryAngleRad);
+        
+        // Calculate intersection of circle with boundary line
+        // Circle center distance from origin
+        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
+        const centerAngle = Math.atan2(circle.cx, circle.cy);
+        const angleDiff = boundaryAngleRad - centerAngle;
+        const perpDist = centerDist * Math.sin(angleDiff);
+        
+        // Distance along the line to the intersection
+        const proj = centerDist * Math.cos(angleDiff);
+        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
+        const dist = proj + offset;  // Choose the farther intersection (outer side)
+        
+        p2 = {
+          x: dist * lineX,
+          y: dist * lineY
+        };
       } else {
-        // Tangent point with next arc
-        const next = centers[i + 1];
-        p2 = calcTangentPoint(cx, cy, r, next.cx, next.cy, next.r);
+        // Tangent point with next arc (external tangency)
+        const next = allCircles[i + 1];
+        const dx = next.cx - circle.cx;
+        const dy = next.cy - circle.cy;
+        const dist = Math.sqrt(dx ** 2 + dy ** 2);
+        
+        if (dist > 0) {
+          const t = circle.r / dist;
+          p2 = {
+            x: circle.cx + t * dx,
+            y: circle.cy + t * dy
+          };
+        } else {
+          console.error('Circles have same center');
+          continue;
+        }
       }
       
       arcs.push({
-        cx, cy, r,
-        p1x: p1.x, p1y: p1.y,
-        p2x: p2.x, p2y: p2.y
+        cx: circle.cx,
+        cy: circle.cy,
+        r: circle.r,
+        p1x: p1.x,
+        p1y: p1.y,
+        p2x: p2.x,
+        p2y: p2.y
       });
     }
     
@@ -391,17 +427,35 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   
   // Helper: draw wave arcs to DXF
   const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>) => {
-    for (const arc of arcs) {
+    for (let i = 0; i < arcs.length; i++) {
+      const arc = arcs[i];
+      console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
+      
       // Calculate DXF ARC angles (relative to arc center)
       let a1 = Math.atan2(arc.p1y - arc.cy, arc.p1x - arc.cx) * 180 / Math.PI;
       let a2 = Math.atan2(arc.p2y - arc.cy, arc.p2x - arc.cx) * 180 / Math.PI;
+      console.log(`  Raw angles: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°`);
       
       // Normalize angles to [0, 360)
       if (a1 < 0) a1 += 360;
       if (a2 < 0) a2 += 360;
       
-      // Ensure CCW direction
-      if (a2 < a1) a2 += 360;
+      // Determine which direction gives the shorter arc
+      // Calculate both possible angle differences
+      const diffCCW = a2 >= a1 ? a2 - a1 : a2 + 360 - a1;  // Counter-clockwise from a1 to a2
+      const diffCW = a1 >= a2 ? a1 - a2 : a1 + 360 - a2;   // Clockwise from a1 to a2
+      
+      // Choose the shorter arc
+      if (diffCCW <= diffCW) {
+        // Use CCW direction (a1 -> a2)
+        if (a2 < a1) a2 += 360;
+      } else {
+        // Use CW direction (swap: a2 -> a1, but DXF always draws CCW, so we swap start/end)
+        const temp = a1;
+        a1 = a2;
+        a2 = temp;
+        if (a2 < a1) a2 += 360;
+      }
       
       addArc(lines, arc.cx, arc.cy, arc.r, a1, a2);
     }
@@ -431,7 +485,6 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   addLine(lines, leftOuterX, leftOuterY, leftInnerX, leftInnerY);
 
   // Draw right radial line (from inner to outer at end angle)
-  const endAngleRad = startAngleRad + sectorAngleRad;
   const rightOuterX = outerR * Math.cos(endAngleRad);
   const rightOuterY = outerR * Math.sin(endAngleRad);
   const rightInnerX = innerR * Math.cos(endAngleRad);

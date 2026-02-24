@@ -146,53 +146,20 @@ export function calculateWaveformLampshade(
     return result;
   }
 
-  // Calculate peak radius based on three tangent circles geometry
-  // Wave height h is the radial distance from trough lowest point to peak highest point
-  // Trough lowest point: R_base - 2*r_trough
-  // Peak highest point: R_base + 2*r_peak
-  // Therefore: (R_base + 2*r_peak) - (R_base - 2*r_trough) = h
-  // Simplify: 2*r_peak + 2*r_trough = h
-  // But this assumes the circles are positioned symmetrically
-  // 
-  // Actually, for three mutually tangent circles:
-  // - Trough circle is inside base circle: distance from origin to trough center = R_base - r_trough
-  // - Peak circle is outside base circle: distance from origin to peak center = R_base + r_peak
-  // - Trough and peak circles are tangent: distance between centers = r_trough + r_peak
-  //
-  // If both centers are on the same radial line:
-  // (R_base + r_peak) - (R_base - r_trough) = r_trough + r_peak
-  // r_peak + r_trough = r_trough + r_peak ✓ (always true)
-  //
-  // The wave height constraint is:
-  // Peak highest point - Trough lowest point = h
-  // (R_base + r_peak + r_peak) - (R_base - r_trough - r_trough) = h
-  // 2*r_peak + 2*r_trough = h
-  // r_peak = h/2 - r_trough
-  //
-  // Wait, this gives negative values. Let me reconsider...
-  //
-  // Actually, the trough lowest point is at distance (R_base - r_trough) - r_trough = R_base - 2*r_trough
-  // And the peak highest point is at distance (R_base + r_peak) + r_peak = R_base + 2*r_peak
-  // So: (R_base + 2*r_peak) - (R_base - 2*r_trough) = h
-  // 2*r_peak + 2*r_trough = h
-  // r_peak = h/2 - r_trough
-  //
-  // This formula is correct, but it requires h/2 > r_trough
-  // For the default values (h=10, r_trough=20), we get r_peak = 5 - 20 = -15 (invalid)
-  //
-  // The issue is that the default r_trough is too large for the given wave height.
-  // Let's use a simpler formula: assume r_peak = r_trough (symmetric waves)
-  // Then: 2*r_peak + 2*r_trough = h → 4*r_trough = h → r_trough = h/4
-  //
-  // For now, let's just set r_peak = r_trough and warn if it doesn't match the height
-  result.peakRadius = input.troughRadius;
+  // Calculate peak radius using simplified geometry
+  // Wave height is the radial distance from trough lowest point to peak highest point
+  // Trough lowest point: R_base - troughRadius
+  // Peak highest point: R_base + peakRadius
+  // Therefore: waveHeight = (R_base + peakRadius) - (R_base - troughRadius)
+  // Simplify: waveHeight = peakRadius + troughRadius
+  // Solve for peakRadius: peakRadius = waveHeight - troughRadius
+  result.peakRadius = Math.max(0.1, input.waveHeight - input.troughRadius);
   
-  // Calculate actual wave height with this configuration
-  const actualWaveHeight = 2 * result.peakRadius + 2 * input.troughRadius;
-  
-  if (Math.abs(actualWaveHeight - input.waveHeight) > 0.1) {
-    // Wave height doesn't match, but we'll continue with symmetric waves
-    console.warn(`Wave height mismatch: requested ${input.waveHeight}mm, actual ${actualWaveHeight.toFixed(2)}mm`);
+  // Validate that peakRadius is positive
+  if (result.peakRadius <= 0) {
+    result.isValid = false;
+    result.validationMessage = `波谷半径(${input.troughRadius}mm)必须小于波高(${input.waveHeight}mm)`;
+    return result;
   }
 
   // Calculate circumferences
