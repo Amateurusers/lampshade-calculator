@@ -218,13 +218,64 @@ export function calculateWaveformGeometry(
     }
     
     // 求解波峰圆半径
-    const solvedPeakR = solveThreeCircleTangency(
-      auxiliaryR,
-      troughRadius,
-      leftTrough,
-      rightTrough,
-      angle
-    );
+    let solvedPeakR: number | null = null;
+    
+    if (i === 0 || i === divisions) {
+      // 边界波峰：使用两圆相切的简化方法
+      // 波峰圆与辅助圆内切，与相邻波谷圆外切
+      const adjacentTrough = i === 0 ? troughCircles[0] : troughCircles[troughCircles.length - 1];
+      
+      // 使用牛顿迭代求解
+      let testPeakR = 40; // 初始猜测值
+      const maxIter = 100;
+      const tol = 1e-6;
+      
+      for (let iter = 0; iter < maxIter; iter++) {
+        const peakCenterR = auxiliaryR - testPeakR;
+        const angleRad = (angle * Math.PI) / 180;
+        const peakX = peakCenterR * Math.sin(angleRad);
+        const peakY = peakCenterR * Math.cos(angleRad);
+        
+        const dist = Math.sqrt((peakX - adjacentTrough.x) ** 2 + (peakY - adjacentTrough.y) ** 2);
+        const error = dist - (testPeakR + troughRadius);
+        
+        if (Math.abs(error) < tol) {
+          solvedPeakR = testPeakR;
+          break;
+        }
+        
+        // 数值微分
+        const delta = 0.01;
+        const testPeakR2 = testPeakR + delta;
+        const peakCenterR2 = auxiliaryR - testPeakR2;
+        const peakX2 = peakCenterR2 * Math.sin(angleRad);
+        const peakY2 = peakCenterR2 * Math.cos(angleRad);
+        const dist2 = Math.sqrt((peakX2 - adjacentTrough.x) ** 2 + (peakY2 - adjacentTrough.y) ** 2);
+        const error2 = dist2 - (testPeakR2 + troughRadius);
+        
+        const derivative = (error2 - error) / delta;
+        
+        if (Math.abs(derivative) > 1e-10) {
+          const newPeakR = testPeakR - error / derivative;
+          if (newPeakR > 0 && newPeakR < auxiliaryR) {
+            testPeakR = newPeakR;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+    } else {
+      // 中间波峰：使用三圆相切算法
+      solvedPeakR = solveThreeCircleTangency(
+        auxiliaryR,
+        troughRadius,
+        leftTrough,
+        rightTrough,
+        angle
+      );
+    }
     
     if (solvedPeakR === null) {
       console.error(`无法求解波峰圆 at angle ${angle}°`);
