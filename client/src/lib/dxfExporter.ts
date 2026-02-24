@@ -492,25 +492,35 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
         
         // 计算圆弧与内圆的交点
-        // 使用两圆相交公式：d^2 + h^2 = r1^2, h^2 = r2^2 - d^2
-        const d = Math.abs(centerDist - clipInnerR);
+        // 使用正确的两圆相交公式
+        const r1 = clipInnerR;  // 内圆半径
+        const r2 = arc.r;       // 波峰圆半径
         
-        if (d < arc.r) {
-          // 圆弧与内圆相交
-          const centerAngle = Math.atan2(arc.cy, arc.cx);
+        // 检查两圆是否相交
+        if (centerDist < r1 + r2 && centerDist > Math.abs(r1 - r2)) {
+          // 计算两圆心连线上的投影距离
+          const a = (r1 * r1 - r2 * r2 + centerDist * centerDist) / (2 * centerDist);
           
-          // 计算交点角度偏移
-          const angleOffset = Math.asin(Math.min(1, arc.r / centerDist));
+          // 计算垂直于连线方向的距离
+          const h = Math.sqrt(r1 * r1 - a * a);
           
-          // 两个交点的角度（相对于原点）
-          const intersect1Angle = centerAngle - angleOffset;
-          const intersect2Angle = centerAngle + angleOffset;
+          // 两圆心连线的单位向量
+          const ux = arc.cx / centerDist;
+          const uy = arc.cy / centerDist;
           
-          // 计算交点坐标
-          const intersect1X = clipInnerR * Math.cos(intersect1Angle);
-          const intersect1Y = clipInnerR * Math.sin(intersect1Angle);
-          const intersect2X = clipInnerR * Math.cos(intersect2Angle);
-          const intersect2Y = clipInnerR * Math.sin(intersect2Angle);
+          // 投影点坐标（在两圆心连线上）
+          const px = a * ux;
+          const py = a * uy;
+          
+          // 垂直方向的单位向量
+          const vx = -uy;
+          const vy = ux;
+          
+          // 两个交点坐标
+          const intersect1X = px + h * vx;
+          const intersect1Y = py + h * vy;
+          const intersect2X = px - h * vx;
+          const intersect2Y = py - h * vy;
           
           // 检查p1和p2是否超出内圆
           const p1Dist = Math.sqrt(p1x ** 2 + p1y ** 2);
