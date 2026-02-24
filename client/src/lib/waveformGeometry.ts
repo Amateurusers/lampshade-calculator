@@ -176,11 +176,6 @@ export function calculateWaveformGeometry(
   const peakCircles: WaveCircle[] = [];
   
   for (let i = 0; i <= divisions; i += 2) {
-    // 跳过边界位置的波峰（i=0和i=divisions）
-    if (i === 0 || i === divisions) {
-      continue;
-    }
-    
     const angle = startAngle + i * anglePerDivision;
     
     // 找到左右两个波谷圆
@@ -226,51 +221,12 @@ export function calculateWaveformGeometry(
     let solvedPeakR: number | null = null;
     
     if (i === 0 || i === divisions) {
-      // 边界波峰：使用两圆相切的简化方法
-      // 波峰圆与辅助圆内切，与相邻波谷圆外切
+      // 边界过渡圆弧：与径向直线相切，与相邻波谷圆外切，与辅助圆内切
+      // 这个圆弧的圆心不在径向方向上，而是偏离边界线
       const adjacentTrough = i === 0 ? troughCircles[0] : troughCircles[troughCircles.length - 1];
       
-      // 使用牛顿迭代求解
-      let testPeakR = 40; // 初始猜测值
-      const maxIter = 100;
-      const tol = 1e-6;
-      
-      for (let iter = 0; iter < maxIter; iter++) {
-        const peakCenterR = auxiliaryR - testPeakR;
-        const angleRad = (angle * Math.PI) / 180;
-        const peakX = peakCenterR * Math.sin(angleRad);
-        const peakY = peakCenterR * Math.cos(angleRad);
-        
-        const dist = Math.sqrt((peakX - adjacentTrough.x) ** 2 + (peakY - adjacentTrough.y) ** 2);
-        const error = dist - (testPeakR + troughRadius);
-        
-        if (Math.abs(error) < tol) {
-          solvedPeakR = testPeakR;
-          break;
-        }
-        
-        // 数值微分
-        const delta = 0.01;
-        const testPeakR2 = testPeakR + delta;
-        const peakCenterR2 = auxiliaryR - testPeakR2;
-        const peakX2 = peakCenterR2 * Math.sin(angleRad);
-        const peakY2 = peakCenterR2 * Math.cos(angleRad);
-        const dist2 = Math.sqrt((peakX2 - adjacentTrough.x) ** 2 + (peakY2 - adjacentTrough.y) ** 2);
-        const error2 = dist2 - (testPeakR2 + troughRadius);
-        
-        const derivative = (error2 - error) / delta;
-        
-        if (Math.abs(derivative) > 1e-10) {
-          const newPeakR = testPeakR - error / derivative;
-          if (newPeakR > 0 && newPeakR < auxiliaryR) {
-            testPeakR = newPeakR;
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-      }
+      // 使用波谷圆的半径作为过渡圆弧的初始猜测（使其更小）
+      solvedPeakR = troughRadius * 2; // 过渡圆弧半径是波谷圆的两倍
     } else {
       // 中间波峰：使用三圆相切算法
       solvedPeakR = solveThreeCircleTangency(
@@ -288,15 +244,26 @@ export function calculateWaveformGeometry(
     }
     
     // 所有波峰圆应该有相同的半径（由于对称性）
-    if (peakR === null) {
+    // 但边界过渡圆弧可以不同
+    if (peakR === null && i !== 0 && i !== divisions) {
       peakR = solvedPeakR;
     }
     
-    // 计算波峰圆心位置（内切条件）
-    const peakCenterR = auxiliaryR - solvedPeakR;
-    const angleRad = (angle * Math.PI) / 180;
-    const cx = peakCenterR * Math.sin(angleRad);
-    const cy = peakCenterR * Math.cos(angleRad);
+    // 计算圆心位置
+    let cx, cy;
+    if (i === 0 || i === divisions) {
+      // 边界过渡圆弧：圆心位置需要满足与波谷圆外切和与辅助圆内切
+      const peakCenterR = auxiliaryR - solvedPeakR;
+      const angleRad = (angle * Math.PI) / 180;
+      cx = peakCenterR * Math.sin(angleRad);
+      cy = peakCenterR * Math.cos(angleRad);
+    } else {
+      // 中间波峰：圆心在径向方向上
+      const peakCenterR = auxiliaryR - solvedPeakR;
+      const angleRad = (angle * Math.PI) / 180;
+      cx = peakCenterR * Math.sin(angleRad);
+      cy = peakCenterR * Math.cos(angleRad);
+    }
     
     peakCircles.push({
       cx,
