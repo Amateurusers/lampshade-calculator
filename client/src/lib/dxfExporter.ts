@@ -304,19 +304,20 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     
     // Use geometry coordinates directly (no rotation needed)
     // Geometry already has correct circle centers in Cartesian coordinates
-    const allCircles: Array<{cx: number, cy: number, r: number, angle: number}> = [];
+    const allCircles: Array<{cx: number, cy: number, r: number, angle: number, type: 'trough' | 'peak'}> = [];
     
     for (const circle of geometry.circles) {
       allCircles.push({
         cx: circle.cx,
         cy: circle.cy,
         r: circle.r,
-        angle: circle.angle
+        angle: circle.angle,
+        type: circle.type
       });
     }
     
     // Calculate arc endpoints using tangent conditions
-    const arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}> = [];
+    const arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number, type: 'trough' | 'peak'}> = [];
     
     for (let i = 0; i < allCircles.length; i++) {
       const circle = allCircles[i];
@@ -414,7 +415,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         p1x: p1.x,
         p1y: p1.y,
         p2x: p2.x,
-        p2y: p2.y
+        p2y: p2.y,
+        type: circle.type
       });
     }
     
@@ -422,7 +424,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   };
   
   // Helper: draw wave arcs to DXF
-  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>, clipInnerR?: number) => {
+  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number, type: 'trough' | 'peak'}>, clipInnerR?: number) => {
     for (let i = 0; i < arcs.length; i++) {
       const arc = arcs[i];
       console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
@@ -482,10 +484,10 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         continue;
       }
       
-      // 检查是否需要内圆裁剪（仅对波峰圆，即偶数位置的圆）
+      // 检查是否需要内圆裁剪（仅对波峰圆）
       let p1x = arc.p1x, p1y = arc.p1y, p2x = arc.p2x, p2y = arc.p2y;
       
-      if (clipInnerR && i % 2 === 0) {
+      if (clipInnerR && arc.type === 'peak' && i !== 0 && i !== arcs.length - 1) {
         // 这是波峰圆，检查是否超出内圆
         const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
         
