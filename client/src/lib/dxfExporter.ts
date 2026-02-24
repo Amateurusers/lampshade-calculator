@@ -469,20 +469,24 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     }
   };
 
-  // Draw outer arc (top edge in DXF view, larger radius)
-  // In DXF coordinate system, larger radius appears at the top (higher Y values)
-  // User's "下口有波浪" (bottom/larger opening has waves) → bottomWave → outerR → appears at top in DXF
-  if (bottomWave) {
+  // CRITICAL: Unfolded lampshade mapping
+  // When the sector is rolled into a cone:
+  // - Outer arc (larger radius in unfolded view) → becomes TOP opening (smaller diameter)
+  // - Inner arc (smaller radius in unfolded view) → becomes BOTTOM opening (larger diameter)
+  // This is because outer arc has longer perimeter → wraps into smaller circle
+  
+  // Draw outer arc (larger radius in unfolded DXF, becomes top/small opening when rolled)
+  // User's "上口有波浪" (top opening has waves) → topWave → outerR in unfolded view
+  if (topWave) {
     const arcs = generateWaveArcs(outerR);
     drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw inner arc (bottom edge in DXF view, smaller radius)
-  // In DXF coordinate system, smaller radius appears at the bottom (lower Y values)
-  // User's "上口有波浪" (top/smaller opening has waves) → topWave → innerR → appears at bottom in DXF
-  if (topWave) {
+  // Draw inner arc (smaller radius in unfolded DXF, becomes bottom/large opening when rolled)
+  // User's "下口有波浪" (bottom opening has waves) → bottomWave → innerR in unfolded view
+  if (bottomWave) {
     const arcs = generateWaveArcs(innerR);
     drawWaveArcs(arcs);
   } else {
