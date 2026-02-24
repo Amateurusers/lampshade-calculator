@@ -282,71 +282,119 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     return chooseOuter ? (r1_sq > r2_sq ? {x: x1, y: y1} : {x: x2, y: y2}) : (r1_sq < r2_sq ? {x: x1, y: y1} : {x: x2, y: y2});
   };
 
-  // Helper: generate continuous tangent arc waves
-  // All arcs are connected end-to-end to form a continuous wavy curve
+  // Helper: generate continuous tangent arc waves using center trajectory method
+  // All arc centers lie on specific circular trajectories
   const generateWaveArcs = (baseR: number) => {
+    console.log('generateWaveArcs called with baseR=', baseR, 'bottomWave=', bottomWave, 'topWave=', topWave);
     const troughR = result.troughRadius;
     const peakR = result.peakRadius;
     
-    // Divid    // Generate 2N+1 half-waves to ensure symmetry
-    // Start and end at trough lowest points
-    const numHalfWaves = 2 * waveCount + 1;   const halfWaveAngle = sectorAngleRad / numHalfWaves;
+    // Calculate center trajectory radii
+    const R_min = baseR - waveHeight / 2;  // Trough lowest point radius
+    const R_max = baseR + waveHeight / 2;  // Peak highest point radius
+    const R_trough_center = R_min + troughR;  // Trough center trajectory radius
+    const R_peak_center = R_max - peakR;      // Peak center trajectory radius
+    
+    // Use 2N+1 arcs for symmetry (start and end with trough)
+    const numArcs = 2 * waveCount + 1;
+    
+    // Divide the sector angle evenly
+    const angleStep = (endAngleRad - startAngleRad) / numArcs;
     
     // Calculate all arc centers first
-    const arcCenters: Array<{cx: number, cy: number, r: number, isTrough: boolean}> = [];
-    for (let i = 0; i < numHalfWaves; i++) {
+    const centers: Array<{cx: number, cy: number, r: number, isTrough: boolean}> = [];
+    for (let i = 0; i < numArcs; i++) {
       const isTrough = (i % 2 === 0);
-      const arcRadius = isTrough ? troughR : peakR;
-      const centerR = isTrough ? (baseR - arcRadius) : (baseR + arcRadius);
-      const centerAngle = startAngleRad + (i + 0.5) * halfWaveAngle;
+      const centerAngle = startAngleRad + (i + 0.5) * angleStep;
+      const centerR = isTrough ? R_trough_center : R_peak_center;
+      const arcR = isTrough ? troughR : peakR;
       
-      arcCenters.push({
+      centers.push({
         cx: centerR * Math.cos(centerAngle),
         cy: centerR * Math.sin(centerAngle),
-        r: arcRadius,
+        r: arcR,
         isTrough
       });
     }
     
-    // Draw each arc with proper start/end points
-    for (let i = 0; i < numHalfWaves; i++) {
-      const {cx, cy, r, isTrough} = arcCenters[i];
+    // Helper: calculate tangent point between two circles
+    const calcTangentPoint = (cx1: number, cy1: number, r1: number, cx2: number, cy2: number, r2: number) => {
+      const d = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
+      const t = r1 / d;
+      return {
+        x: cx1 + t * (cx2 - cx1),
+        y: cy1 + t * (cy2 - cy1)
+      };
+    };
+    
+    // Helper: calculate intersection of radial line and circle (choose farther point)
+    const calcRadialIntersection = (angle: number, cx: number, cy: number, r: number) => {
+      const d_center = Math.sqrt(cx ** 2 + cy ** 2);
+      const angle_center = Math.atan2(cy, cx);
+      const delta = angle - angle_center;
+      
+      const proj = d_center * Math.cos(delta);
+      const perp = d_center * Math.sin(delta);
+      
+      if (Math.abs(perp) > r) {
+        console.error('Radial line does not intersect circle:', {angle, cx, cy, r, perp: Math.abs(perp)});
+        return null;
+      }
+      
+      const d = proj + Math.sqrt(r ** 2 - perp ** 2);
+      console.log('Radial intersection OK:', {angle, d, x: d * Math.cos(angle), y: d * Math.sin(angle)});
+      return {
+        x: d * Math.cos(angle),
+        y: d * Math.sin(angle)
+      };
+    };
+    
+    // Calculate arc endpoints
+    const arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}> = [];
+    
+    for (let i = 0; i < numArcs; i++) {
+      const {cx, cy, r} = centers[i];
       
       // Calculate start point
-      let p1x, p1y;
+      let p1;
       if (i === 0) {
-        // First arc: start at trough lowest point
-        const angle = startAngleRad + (0.5 * sectorAngleRad / numHalfWaves);
-        const distance = baseR - waveHeight / 2;
-        p1x = distance * Math.cos(angle);
-        p1y = distance * Math.sin(angle);
+        // First arc: intersect with left radial line
+        p1 = calcRadialIntersection(startAngleRad, cx, cy, r);
+        if (!p1) break;
       } else {
-        // Calculate intersection with previous arc
-        const prev = arcCenters[i - 1];
-        const intersection = circleIntersection(prev.cx, prev.cy, prev.r, cx, cy, r, true);
-        p1x = intersection.x;
-        p1y = intersection.y;
+        // Tangent point with previous arc
+        const prev = centers[i - 1];
+        p1 = calcTangentPoint(prev.cx, prev.cy, prev.r, cx, cy, r);
       }
       
       // Calculate end point
-      let p2x, p2y;
-      if (i === numHalfWaves - 1) {
-        // Last arc: end at trough lowest point
-        const angle = startAngleRad + ((numHalfWaves - 0.5) * sectorAngleRad / numHalfWaves);
-        const distance = baseR - waveHeight / 2;
-        p2x = distance * Math.cos(angle);
-        p2y = distance * Math.sin(angle);
+      let p2;
+      if (i === numArcs - 1) {
+        // Last arc: intersect with right radial line
+        p2 = calcRadialIntersection(endAngleRad, cx, cy, r);
+        if (!p2) break;
       } else {
-        // Calculate intersection with next arc
-        const next = arcCenters[i + 1];
-        const intersection = circleIntersection(cx, cy, r, next.cx, next.cy, next.r, true);
-        p2x = intersection.x;
-        p2y = intersection.y;
+        // Tangent point with next arc
+        const next = centers[i + 1];
+        p2 = calcTangentPoint(cx, cy, r, next.cx, next.cy, next.r);
       }
       
+      arcs.push({
+        cx, cy, r,
+        p1x: p1.x, p1y: p1.y,
+        p2x: p2.x, p2y: p2.y
+      });
+    }
+    
+    return arcs;
+  };
+  
+  // Helper: draw wave arcs to DXF
+  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>) => {
+    for (const arc of arcs) {
       // Calculate DXF ARC angles (relative to arc center)
-      let a1 = Math.atan2(p1y - cy, p1x - cx) * 180 / Math.PI;
-      let a2 = Math.atan2(p2y - cy, p2x - cx) * 180 / Math.PI;
+      let a1 = Math.atan2(arc.p1y - arc.cy, arc.p1x - arc.cx) * 180 / Math.PI;
+      let a2 = Math.atan2(arc.p2y - arc.cy, arc.p2x - arc.cx) * 180 / Math.PI;
       
       // Normalize angles to [0, 360)
       if (a1 < 0) a1 += 360;
@@ -355,20 +403,22 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Ensure CCW direction
       if (a2 < a1) a2 += 360;
       
-      addArc(lines, cx, cy, r, a1, a2);
+      addArc(lines, arc.cx, arc.cy, arc.r, a1, a2);
     }
   };
 
   // Draw outer arc (bottom edge of lampshade)
   if (bottomWave) {
-    generateWaveArcs(outerR);
+    const arcs = generateWaveArcs(outerR);
+    drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
   // Draw inner arc (top edge of lampshade)
   if (topWave) {
-    generateWaveArcs(innerR);
+    const arcs = generateWaveArcs(innerR);
+    drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
