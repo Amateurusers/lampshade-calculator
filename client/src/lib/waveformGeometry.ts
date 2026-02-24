@@ -149,11 +149,11 @@ export function calculateWaveformGeometry(
   // 5. 计算起始角度（扇形中心对齐y轴，向两侧展开）
   const startAngle = -sectorAngle / 2;
   
-  // 6. 生成所有波谷圆
+  // 6. 生成所有波谷圆（放在奇数位置，使中心和边界是波峰）
   const troughCircles: Array<{ x: number; y: number; angle: number; index: number }> = [];
   const circles: WaveCircle[] = [];
   
-  for (let i = 0; i <= divisions; i += 2) {
+  for (let i = 1; i < divisions; i += 2) {
     const angle = startAngle + i * anglePerDivision;
     const angleRad = (angle * Math.PI) / 180;
     
@@ -171,24 +171,51 @@ export function calculateWaveformGeometry(
     });
   }
   
-  // 7. 求解波峰圆
+  // 7. 求解波峰圆（放在偶数位置，包括0和divisions）
   let peakR: number | null = null;
   const peakCircles: WaveCircle[] = [];
   
-  for (let i = 1; i < divisions; i += 2) {
+  for (let i = 0; i <= divisions; i += 2) {
     const angle = startAngle + i * anglePerDivision;
     
     // 找到左右两个波谷圆
-    const leftTroughIndex = Math.floor(i / 2);
-    const rightTroughIndex = leftTroughIndex + 1;
+    // 波谷圆在奇数位置: 1, 3, 5, 7...
+    // 波峰圆在偶数位置: 0, 2, 4, 6, 8...
+    // 对于波峰i=0，左右波谷是i=1（右侧）
+    // 对于波峰i=2，左右波谷是i=1和i=3
+    // 对于波峰i=divisions，左右波谷是i=divisions-1（左侧）
     
-    if (rightTroughIndex >= troughCircles.length) {
-      console.error(`波峰圆索引 ${i} 超出范围`);
-      continue;
+    let leftTrough, rightTrough;
+    
+    if (i === 0) {
+      // 边界波峰：只有右侧波谷
+      if (troughCircles.length === 0) {
+        console.error(`波峰圆索引 ${i} 没有波谷圆`);
+        continue;
+      }
+      leftTrough = troughCircles[0];  // 使用同一个波谷圆
+      rightTrough = troughCircles[0];
+    } else if (i === divisions) {
+      // 边界波峰：只有左侧波谷
+      if (troughCircles.length === 0) {
+        console.error(`波峰圆索引 ${i} 没有波谷圆`);
+        continue;
+      }
+      leftTrough = troughCircles[troughCircles.length - 1];
+      rightTrough = troughCircles[troughCircles.length - 1];
+    } else {
+      // 中间波峰：有左右两侧波谷
+      const leftTroughIndex = (i / 2) - 1;  // i=2 -> index=0, i=4 -> index=1
+      const rightTroughIndex = i / 2;        // i=2 -> index=1, i=4 -> index=2
+      
+      if (leftTroughIndex < 0 || rightTroughIndex >= troughCircles.length) {
+        console.error(`波峰圆索引 ${i} 超出范围`);
+        continue;
+      }
+      
+      leftTrough = troughCircles[leftTroughIndex];
+      rightTrough = troughCircles[rightTroughIndex];
     }
-    
-    const leftTrough = troughCircles[leftTroughIndex];
-    const rightTrough = troughCircles[rightTroughIndex];
     
     // 求解波峰圆半径
     const solvedPeakR = solveThreeCircleTangency(
