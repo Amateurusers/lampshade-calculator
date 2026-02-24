@@ -176,11 +176,6 @@ export function calculateWaveformGeometry(
   const peakCircles: WaveCircle[] = [];
   
   for (let i = 0; i <= divisions; i += 2) {
-    // 跳过边界位置的波峰（i=0和i=divisions）
-    if (i === 0 || i === divisions) {
-      continue;
-    }
-    
     const angle = startAngle + i * anglePerDivision;
     
     // 找到左右两个波谷圆
