@@ -469,18 +469,20 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     }
   };
 
-  // Draw outer arc (top edge in DXF view, larger radius)
-  if (topWave) {
+  // Physical lampshade structure:
+  // - 下口 (bottom/large opening) = outerR (large radius in unfolding)
+  // - 上口 (top/small opening) = innerR (small radius in unfolding)
+  
+  // Draw outer arc (large radius = bottom opening of lampshade)
+  if (bottomWave) {
     const arcs = generateWaveArcs(outerR);
     drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw inner arc (bottom edge in DXF view, smaller radius)
-  // When user selects "下口有波浪" (bottom opening has waves),
-  // generate wave geometry based on innerR (not outerR)
-  if (bottomWave) {
+  // Draw inner arc (small radius = top opening of lampshade)
+  if (topWave) {
     const arcs = generateWaveArcs(innerR);
     drawWaveArcs(arcs);
   } else {
