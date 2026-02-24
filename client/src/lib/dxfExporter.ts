@@ -341,7 +341,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         // Distance along the line to the intersection
         const proj = centerDist * Math.cos(angleDiff);
         const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
-        const dist = proj + offset;  // Choose the farther intersection (outer side)
+        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
         
         p1 = {
           x: dist * lineX,
@@ -386,7 +386,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         // Distance along the line to the intersection
         const proj = centerDist * Math.cos(angleDiff);
         const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
-        const dist = proj + offset;  // Choose the farther intersection (outer side)
+        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
         
         p2 = {
           x: dist * lineX,
@@ -440,22 +440,30 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       if (a1 < 0) a1 += 360;
       if (a2 < 0) a2 += 360;
       
-      // Determine which direction gives the shorter arc
-      // Calculate both possible angle differences
-      const diffCCW = a2 >= a1 ? a2 - a1 : a2 + 360 - a1;  // Counter-clockwise from a1 to a2
-      const diffCW = a1 >= a2 ? a1 - a2 : a1 + 360 - a2;   // Clockwise from a1 to a2
+      // Calculate the angle span in both directions
+      let spanCCW = a2 - a1;
+      if (spanCCW < 0) spanCCW += 360;
       
-      // Choose the shorter arc
-      if (diffCCW <= diffCW) {
-        // Use CCW direction (a1 -> a2)
-        if (a2 < a1) a2 += 360;
-      } else {
-        // Use CW direction (swap: a2 -> a1, but DXF always draws CCW, so we swap start/end)
+      console.log(`  Normalized: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°, spanCCW=${spanCCW.toFixed(2)}°`);
+      
+      // DXF draws arcs counter-clockwise. If the CCW span > 180°, 
+      // it means the short arc is in the clockwise direction.
+      // In that case, we need to reverse the direction by swapping angles
+      if (spanCCW > 180) {
+        // Swap start and end to draw the short arc
         const temp = a1;
         a1 = a2;
         a2 = temp;
-        if (a2 < a1) a2 += 360;
+        // Now recalculate span
+        spanCCW = 360 - spanCCW;
       }
+      
+      // Ensure a2 > a1 for CCW drawing (add 360 if needed)
+      while (a2 <= a1) {
+        a2 += 360;
+      }
+      
+      console.log(`  Final: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°, span=${(a2-a1).toFixed(2)}°`);
       
       addArc(lines, arc.cx, arc.cy, arc.r, a1, a2);
     }
