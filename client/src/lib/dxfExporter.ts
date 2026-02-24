@@ -422,7 +422,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   };
   
   // Helper: draw wave arcs to DXF
-  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>, innerR: number) => {
+  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>) => {
     for (let i = 0; i < arcs.length; i++) {
       const arc = arcs[i];
       console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
@@ -516,59 +516,6 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       
       console.log(`  Final: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°, span=${(a2-a1).toFixed(2)}°`);
       
-      // 为中间波峰圆添加内圆裁剪（位置2和6）
-      // 波峰圆在偶数位置：0, 2, 4, 6, 8
-      // 需要裁剪的是位置2和6
-      if (i === 2 || i === 6) {
-        const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
-        
-        // 检查圆弧是否会超出内圆
-        if (centerDist - arc.r < innerR) {
-          console.log(`  Peak arc ${i} extends beyond inner circle, clipping...`);
-          
-          // 计算圆与内圆的交点
-          const d = centerDist;
-          const r1 = arc.r;
-          const r2 = innerR;
-          
-          // 检查是否有交点
-          if (d < r1 + r2 && d > Math.abs(r1 - r2)) {
-            // 使用两圆相交公式
-            const a_dist = (r1 ** 2 - r2 ** 2 + d ** 2) / (2 * d);
-            const h = Math.sqrt(Math.max(0, r1 ** 2 - a_dist ** 2));
-            
-            // 交点在连接两圆心的直线上的投影点
-            const px = arc.cx * a_dist / d;
-            const py = arc.cy * a_dist / d;
-            
-            // 两个交点（垂直于连心线）
-            const intersect1X = px - h * arc.cy / d;
-            const intersect1Y = py + h * arc.cx / d;
-            const intersect2X = px + h * arc.cy / d;
-            const intersect2Y = py - h * arc.cx / d;
-            
-            // 计算交点相对于圆心的角度
-            let angle1 = Math.atan2(intersect1Y - arc.cy, intersect1X - arc.cx) * 180 / Math.PI;
-            let angle2 = Math.atan2(intersect2Y - arc.cy, intersect2X - arc.cx) * 180 / Math.PI;
-            
-            if (angle1 < 0) angle1 += 360;
-            if (angle2 < 0) angle2 += 360;
-            
-            console.log(`  Inner circle intersection angles: ${angle1.toFixed(2)}°, ${angle2.toFixed(2)}°`);
-            
-            // 使用交点角度作为新的圆弧端点
-            // 选择较小的角度作为a1，较大的作为a2
-            a1 = Math.min(angle1, angle2);
-            a2 = Math.max(angle1, angle2);
-            
-            // 确保a2 > a1
-            if (a2 < a1) a2 += 360;
-            
-            console.log(`  Clipped to: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°`);
-          }
-        }
-      }
-      
       addArc(lines, arc.cx, arc.cy, arc.r, a1, a2);
     }
   };
@@ -580,7 +527,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   // Draw outer arc (large radius = bottom opening of lampshade)
   if (bottomWave) {
     const arcs = generateWaveArcs(outerR);
-    drawWaveArcs(arcs, innerR);
+    drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
@@ -588,7 +535,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   // Draw inner arc (small radius = top opening of lampshade)
   if (topWave) {
     const arcs = generateWaveArcs(innerR);
-    drawWaveArcs(arcs, innerR);
+    drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
