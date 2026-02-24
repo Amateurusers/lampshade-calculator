@@ -469,7 +469,9 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     }
   };
 
-  // Draw outer arc (bottom edge of lampshade)
+  // Draw outer arc (top edge in DXF view, larger radius)
+  // In DXF coordinate system, larger radius appears at the top (higher Y values)
+  // User's "下口有波浪" (bottom/larger opening has waves) → bottomWave → outerR → appears at top in DXF
   if (bottomWave) {
     const arcs = generateWaveArcs(outerR);
     drawWaveArcs(arcs);
@@ -477,7 +479,9 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw inner arc (top edge of lampshade)
+  // Draw inner arc (bottom edge in DXF view, smaller radius)
+  // In DXF coordinate system, smaller radius appears at the bottom (lower Y values)
+  // User's "上口有波浪" (top/smaller opening has waves) → topWave → innerR → appears at bottom in DXF
   if (topWave) {
     const arcs = generateWaveArcs(innerR);
     drawWaveArcs(arcs);
