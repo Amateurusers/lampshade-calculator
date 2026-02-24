@@ -422,7 +422,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   };
   
   // Helper: draw wave arcs to DXF
-  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>) => {
+  const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number}>, clipInnerR?: number) => {
     for (let i = 0; i < arcs.length; i++) {
       const arc = arcs[i];
       console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
@@ -482,9 +482,72 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         continue;
       }
       
+      // 检查是否需要内圆裁剪（仅对波峰圆，即偶数位置的圆）
+      let p1x = arc.p1x, p1y = arc.p1y, p2x = arc.p2x, p2y = arc.p2y;
+      
+      if (clipInnerR && i % 2 === 0) {
+        // 这是波峰圆，检查是否超出内圆
+        const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
+        
+        // 计算圆弧与内圆的交点
+        // 使用两圆相交公式：d^2 + h^2 = r1^2, h^2 = r2^2 - d^2
+        const d = Math.abs(centerDist - clipInnerR);
+        
+        if (d < arc.r) {
+          // 圆弧与内圆相交
+          const centerAngle = Math.atan2(arc.cy, arc.cx);
+          
+          // 计算交点角度偏移
+          const angleOffset = Math.asin(Math.min(1, arc.r / centerDist));
+          
+          // 两个交点的角度（相对于原点）
+          const intersect1Angle = centerAngle - angleOffset;
+          const intersect2Angle = centerAngle + angleOffset;
+          
+          // 计算交点坐标
+          const intersect1X = clipInnerR * Math.cos(intersect1Angle);
+          const intersect1Y = clipInnerR * Math.sin(intersect1Angle);
+          const intersect2X = clipInnerR * Math.cos(intersect2Angle);
+          const intersect2Y = clipInnerR * Math.sin(intersect2Angle);
+          
+          // 检查p1和p2是否超出内圆
+          const p1Dist = Math.sqrt(p1x ** 2 + p1y ** 2);
+          const p2Dist = Math.sqrt(p2x ** 2 + p2y ** 2);
+          
+          // 如果p1超出内圆（距离小于innerR），用交点替换
+          if (p1Dist < clipInnerR) {
+            // 选择距离p1更近的交点
+            const dist1 = Math.sqrt((p1x - intersect1X) ** 2 + (p1y - intersect1Y) ** 2);
+            const dist2 = Math.sqrt((p1x - intersect2X) ** 2 + (p1y - intersect2Y) ** 2);
+            if (dist1 < dist2) {
+              p1x = intersect1X;
+              p1y = intersect1Y;
+            } else {
+              p1x = intersect2X;
+              p1y = intersect2Y;
+            }
+            console.log(`  Clipped p1 to inner circle: (${p1x.toFixed(2)}, ${p1y.toFixed(2)})`);
+          }
+          
+          // 如果p2超出内圆，用交点替换
+          if (p2Dist < clipInnerR) {
+            const dist1 = Math.sqrt((p2x - intersect1X) ** 2 + (p2y - intersect1Y) ** 2);
+            const dist2 = Math.sqrt((p2x - intersect2X) ** 2 + (p2y - intersect2Y) ** 2);
+            if (dist1 < dist2) {
+              p2x = intersect1X;
+              p2y = intersect1Y;
+            } else {
+              p2x = intersect2X;
+              p2y = intersect2Y;
+            }
+            console.log(`  Clipped p2 to inner circle: (${p2x.toFixed(2)}, ${p2y.toFixed(2)})`);
+          }
+        }
+      }
+      
       // Calculate DXF ARC angles (relative to arc center)
-      let a1 = Math.atan2(arc.p1y - arc.cy, arc.p1x - arc.cx) * 180 / Math.PI;
-      let a2 = Math.atan2(arc.p2y - arc.cy, arc.p2x - arc.cx) * 180 / Math.PI;
+      let a1 = Math.atan2(p1y - arc.cy, p1x - arc.cx) * 180 / Math.PI;
+      let a2 = Math.atan2(p2y - arc.cy, p2x - arc.cx) * 180 / Math.PI;
       console.log(`  Raw angles: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°`);
       
       // Normalize angles to [0, 360)
@@ -527,7 +590,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   // Draw outer arc (large radius = bottom opening of lampshade)
   if (bottomWave) {
     const arcs = generateWaveArcs(outerR);
-    drawWaveArcs(arcs);
+    drawWaveArcs(arcs, innerR);
   } else {
     addArc(lines, 0, 0, outerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
