@@ -258,8 +258,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   lines.push("2");
   lines.push("ENTITIES");
 
-  // Center the sector at angle 90 (pointing up) to match geometry coordinate system
-  const startAngleDeg = 90 - sectorAngleDeg / 2;
+  // Center the sector at angle 270 (pointing down) for better visual
+  const startAngleDeg = 270 - sectorAngleDeg / 2;
   const startAngleRad = (startAngleDeg * Math.PI) / 180;
   const endAngleRad = startAngleRad + sectorAngleRad;
 
@@ -324,23 +324,28 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Calculate start point
       let p1;
       if (i === 0) {
-        // First arc: intersect with left boundary line (at endAngleRad = 150°)
-        const theta = endAngleRad;
-        const d = circle.cx * Math.cos(theta) + circle.cy * Math.sin(theta);
-        const c_sq = circle.cx ** 2 + circle.cy ** 2;
-        const discriminant = d ** 2 - c_sq + circle.r ** 2;
+        // First arc: intersect with left boundary line
+        // The left boundary line is at angle (-sectorAngleDeg / 2) in geometry coordinates
+        const leftBoundaryAngle = -sectorAngleDeg / 2;  // e.g., -60° for 120° sector
+        const boundaryAngleRad = (leftBoundaryAngle * Math.PI) / 180;
+        const lineX = Math.sin(boundaryAngleRad);
+        const lineY = Math.cos(boundaryAngleRad);
         
-        if (discriminant < 0) {
-          console.error('First circle does not intersect with left boundary line');
-          continue;
-        }
+        // Calculate intersection of circle with boundary line
+        // Circle center distance from origin
+        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
+        const centerAngle = Math.atan2(circle.cx, circle.cy);
+        const angleDiff = boundaryAngleRad - centerAngle;
+        const perpDist = centerDist * Math.sin(angleDiff);
         
-        // Choose the farther intersection (outer side)
-        const r_intersection = d + Math.sqrt(discriminant);
+        // Distance along the line to the intersection
+        const proj = centerDist * Math.cos(angleDiff);
+        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
+        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
         
         p1 = {
-          x: r_intersection * Math.cos(theta),
-          y: r_intersection * Math.sin(theta)
+          x: dist * lineX,
+          y: dist * lineY
         };
       } else {
         // Tangent point with previous arc (external tangency)
@@ -364,23 +369,28 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       // Calculate end point
       let p2;
       if (i === allCircles.length - 1) {
-        // Last arc: intersect with right boundary line (at startAngleRad = 30°)
-        const theta = startAngleRad;
-        const d = circle.cx * Math.cos(theta) + circle.cy * Math.sin(theta);
-        const c_sq = circle.cx ** 2 + circle.cy ** 2;
-        const discriminant = d ** 2 - c_sq + circle.r ** 2;
+        // Last arc: intersect with right boundary line
+        // The right boundary line is at angle (sectorAngleDeg / 2) in geometry coordinates
+        const rightBoundaryAngle = sectorAngleDeg / 2;  // e.g., 60° for 120° sector
+        const boundaryAngleRad = (rightBoundaryAngle * Math.PI) / 180;
+        const lineX = Math.sin(boundaryAngleRad);
+        const lineY = Math.cos(boundaryAngleRad);
         
-        if (discriminant < 0) {
-          console.error('Last circle does not intersect with right boundary line');
-          continue;
-        }
+        // Calculate intersection of circle with boundary line
+        // Circle center distance from origin
+        const centerDist = Math.sqrt(circle.cx ** 2 + circle.cy ** 2);
+        const centerAngle = Math.atan2(circle.cx, circle.cy);
+        const angleDiff = boundaryAngleRad - centerAngle;
+        const perpDist = centerDist * Math.sin(angleDiff);
         
-        // Choose the farther intersection (outer side)
-        const r_intersection = d + Math.sqrt(discriminant);
+        // Distance along the line to the intersection
+        const proj = centerDist * Math.cos(angleDiff);
+        const offset = Math.sqrt(Math.max(0, circle.r ** 2 - perpDist ** 2));
+        const dist = proj - offset;  // Choose the nearer intersection (inner side of the wave)
         
         p2 = {
-          x: r_intersection * Math.cos(theta),
-          y: r_intersection * Math.sin(theta)
+          x: dist * lineX,
+          y: dist * lineY
         };
       } else {
         // Tangent point with next arc (external tangency)
@@ -479,18 +489,18 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
 
-  // Draw left radial line (at higher angle, x<0)
-  const leftOuterX = outerR * Math.cos(endAngleRad);
-  const leftOuterY = outerR * Math.sin(endAngleRad);
-  const leftInnerX = innerR * Math.cos(endAngleRad);
-  const leftInnerY = innerR * Math.sin(endAngleRad);
+  // Draw left radial line (from inner to outer at start angle)
+  const leftOuterX = outerR * Math.cos(startAngleRad);
+  const leftOuterY = outerR * Math.sin(startAngleRad);
+  const leftInnerX = innerR * Math.cos(startAngleRad);
+  const leftInnerY = innerR * Math.sin(startAngleRad);
   addLine(lines, leftOuterX, leftOuterY, leftInnerX, leftInnerY);
 
-  // Draw right radial line (at lower angle, x>0)
-  const rightOuterX = outerR * Math.cos(startAngleRad);
-  const rightOuterY = outerR * Math.sin(startAngleRad);
-  const rightInnerX = innerR * Math.cos(startAngleRad);
-  const rightInnerY = innerR * Math.sin(startAngleRad);
+  // Draw right radial line (from inner to outer at end angle)
+  const rightOuterX = outerR * Math.cos(endAngleRad);
+  const rightOuterY = outerR * Math.sin(endAngleRad);
+  const rightInnerX = innerR * Math.cos(endAngleRad);
+  const rightInnerY = innerR * Math.sin(endAngleRad);
   addLine(lines, rightOuterX, rightOuterY, rightInnerX, rightInnerY);
 
   // Add text annotation
