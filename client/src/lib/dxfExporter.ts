@@ -427,6 +427,13 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       const arc = arcs[i];
       console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
       
+      // 边界波峰圆（第一个和最后一个）绘制为完整圆形
+      if (i === 0 || i === arcs.length - 1) {
+        console.log(`  Drawing as full circle (boundary peak)`);
+        addCircle(lines, arc.cx, arc.cy, arc.r);
+        continue;
+      }
+      
       // Calculate DXF ARC angles (relative to arc center)
       let a1 = Math.atan2(arc.p1y - arc.cy, arc.p1x - arc.cx) * 180 / Math.PI;
       let a2 = Math.atan2(arc.p2y - arc.cy, arc.p2x - arc.cx) * 180 / Math.PI;
@@ -569,6 +576,19 @@ function addBlocksSection(lines: string[]) {
   lines.push("BLOCKS");
   lines.push("0");
   lines.push("ENDSEC");
+}
+
+function addCircle(lines: string[], cx: number, cy: number, radius: number) {
+  lines.push("0");
+  lines.push("CIRCLE");
+  lines.push("8");
+  lines.push("OUTLINE");
+  lines.push("10");
+  lines.push(String(cx));
+  lines.push("20");
+  lines.push(String(cy));
+  lines.push("40");
+  lines.push(String(radius));
 }
 
 function addArc(lines: string[], cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
