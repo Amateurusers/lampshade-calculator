@@ -471,9 +471,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
 
   // Draw outer arc (top edge in DXF view, larger radius)
   // In DXF coordinate system, larger radius appears at the top (higher Y values)
-  // Physical: outerR (larger radius in unfolding) → bottomOpening (larger diameter opening) when rolled up
-  // User's "下口有波浪" (bottom/larger opening has waves) → bottomWave → outerR → appears at top in DXF
-  if (bottomWave) {
+  // User wants: top edge in DXF = smooth → topWave controls outerR
+  if (topWave) {
     const arcs = generateWaveArcs(outerR);
     drawWaveArcs(arcs);
   } else {
@@ -482,9 +481,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
 
   // Draw inner arc (bottom edge in DXF view, smaller radius)
   // In DXF coordinate system, smaller radius appears at the bottom (lower Y values)
-  // Physical: innerR (smaller radius in unfolding) → topOpening (smaller diameter opening) when rolled up
-  // User's "上口有波浪" (top/smaller opening has waves) → topWave → innerR → appears at bottom in DXF
-  if (topWave) {
+  // User wants: bottom edge in DXF = wavy → bottomWave controls innerR
+  if (bottomWave) {
     const arcs = generateWaveArcs(innerR);
     drawWaveArcs(arcs);
   } else {
