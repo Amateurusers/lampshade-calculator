@@ -427,10 +427,58 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       const arc = arcs[i];
       console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
       
-      // 边界波峰圆（第一个和最后一个）绘制为完整圆形
+      // 边界波峰圆（第一个和最后一个）绘制为被裁剪的圆弧
       if (i === 0 || i === arcs.length - 1) {
-        console.log(`  Drawing as full circle (boundary peak)`);
-        addCircle(lines, arc.cx, arc.cy, arc.r);
+        console.log(`  Drawing as trimmed arc (boundary peak)`);
+        
+        // 计算圆与左右边界线的交点
+        // 左边界线：角度 = endAngleRad（较大角度）
+        // 右边界线：角度 = startAngleRad（较小角度）
+        
+        const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
+        const centerAngle = Math.atan2(arc.cy, arc.cx);
+        
+        // 计算与左边界线的交点角度（相对于圆心）
+        const angleDiffLeft = endAngleRad - centerAngle;
+        const perpDistLeft = centerDist * Math.sin(angleDiffLeft);
+        const projLeft = centerDist * Math.cos(angleDiffLeft);
+        const offsetLeft = Math.sqrt(Math.max(0, arc.r ** 2 - perpDistLeft ** 2));
+        
+        // 两个交点：一个靠近原点，一个远离原点
+        const distLeft1 = projLeft - offsetLeft;
+        const distLeft2 = projLeft + offsetLeft;
+        const leftX1 = distLeft1 * Math.cos(endAngleRad);
+        const leftY1 = distLeft1 * Math.sin(endAngleRad);
+        const leftX2 = distLeft2 * Math.cos(endAngleRad);
+        const leftY2 = distLeft2 * Math.sin(endAngleRad);
+        
+        // 计算与右边界线的交点角度（相对于圆心）
+        const angleDiffRight = startAngleRad - centerAngle;
+        const perpDistRight = centerDist * Math.sin(angleDiffRight);
+        const projRight = centerDist * Math.cos(angleDiffRight);
+        const offsetRight = Math.sqrt(Math.max(0, arc.r ** 2 - perpDistRight ** 2));
+        
+        const distRight1 = projRight - offsetRight;
+        const distRight2 = projRight + offsetRight;
+        const rightX1 = distRight1 * Math.cos(startAngleRad);
+        const rightY1 = distRight1 * Math.sin(startAngleRad);
+        const rightX2 = distRight2 * Math.cos(startAngleRad);
+        const rightY2 = distRight2 * Math.sin(startAngleRad);
+        
+        // 选择在扇形内的交点（远离原点的那个）
+        const leftAngle = Math.atan2(leftY2 - arc.cy, leftX2 - arc.cx) * 180 / Math.PI;
+        const rightAngle = Math.atan2(rightY2 - arc.cy, rightX2 - arc.cx) * 180 / Math.PI;
+        
+        // 规范化角度到 [0, 360)
+        let a1 = rightAngle < 0 ? rightAngle + 360 : rightAngle;
+        let a2 = leftAngle < 0 ? leftAngle + 360 : leftAngle;
+        
+        // 确保 a2 > a1 以便逆时针绘制
+        if (a2 < a1) a2 += 360;
+        
+        console.log(`  Trimmed arc angles: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°`);
+        
+        addArc(lines, arc.cx, arc.cy, arc.r, a1, a2);
         continue;
       }
       
