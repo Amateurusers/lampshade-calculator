@@ -425,12 +425,41 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   
   // Helper: draw wave arcs to DXF
   const drawWaveArcs = (arcs: Array<{cx: number, cy: number, r: number, p1x: number, p1y: number, p2x: number, p2y: number, type: 'trough' | 'peak'}>, clipInnerR?: number) => {
-    for (let i = 0; i < arcs.length; i++) {
-      const arc = arcs[i];
+    // 首先对所有圆弧进行内圆裁剪，修改端点
+    const clippedArcs = arcs.map((arc, i) => {
+      let p1x = arc.p1x, p1y = arc.p1y, p2x = arc.p2x, p2y = arc.p2y;
+      
+      // 边界圆弧不需要内圆裁剪（它们已经被裁剪到边界线）
+      if (clipInnerR && i !== 0 && i !== arcs.length - 1) {
+        const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
+        const r1 = clipInnerR;
+        const r2 = arc.r;
+        
+        // 如果圆弧完全在内圆内，标记为跳过
+        if (centerDist + r2 < r1) {
+          return null;
+        }
+        
+        // 如果圆弧与内圆相交，也跳过（不尝试裁剪）
+        if (centerDist < r1 + r2 && centerDist > Math.abs(r1 - r2)) {
+          console.log(`  Skipping arc ${i+1} (${arc.type}): intersects with inner circle`);
+          return null;
+        }
+        
+
+      }
+      
+      return { ...arc, p1x, p1y, p2x, p2y };
+    }).filter(arc => arc !== null) as typeof arcs;
+    
+    // 然后绘制所有裁剪后的圆弧
+    for (let i = 0; i < clippedArcs.length; i++) {
+      const arc = clippedArcs[i];
       console.log(`Arc ${i+1}: center=(${arc.cx.toFixed(2)}, ${arc.cy.toFixed(2)}), r=${arc.r.toFixed(2)}, p1=(${arc.p1x.toFixed(2)}, ${arc.p1y.toFixed(2)}), p2=(${arc.p2x.toFixed(2)}, ${arc.p2y.toFixed(2)})`);
       
-      // 边界波峰圆（第一个和最后一个）绘制为被裁剪的圆弧
-      if (i === 0 || i === arcs.length - 1) {
+      // 边界波峰圆（原始索引为 0 和 arcs.length-1）绘制为被裁剪的圆弧
+      const originalIndex = arcs.indexOf(arc);
+      if (originalIndex === 0 || originalIndex === arcs.length - 1) {
         console.log(`  Drawing as trimmed arc (boundary peak)`);
         
         // 计算圆与左右边界线的交点
@@ -484,84 +513,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         continue;
       }
       
-      // 检查是否需要内圆裁剪（仅对波峰圆）
+      // 使用已经裁剪过的端点
       let p1x = arc.p1x, p1y = arc.p1y, p2x = arc.p2x, p2y = arc.p2y;
-      
-      if (clipInnerR && arc.type === 'peak' && i !== 0 && i !== arcs.length - 1) {
-        // 这是波峰圆，检查是否超出内圆
-        const centerDist = Math.sqrt(arc.cx ** 2 + arc.cy ** 2);
-        
-        // 计算圆弧与内圆的交点
-        // 使用正确的两圆相交公式
-        const r1 = clipInnerR;  // 内圆半径
-        const r2 = arc.r;       // 波峰圆半径
-        
-        // 如果波峰圆完全在内圆以内（圆心到原点的距离 + 圆半径 < 内圆半径），跳过这个圆弧
-        if (centerDist + r2 < r1) {
-          console.log(`  Skipping arc ${i+1}: completely inside inner circle`);
-          continue;
-        }
-        
-        // 检查两圆是否相交
-        if (centerDist < r1 + r2 && centerDist > Math.abs(r1 - r2)) {
-          // 计算两圆心连线上的投影距离
-          const a = (r1 * r1 - r2 * r2 + centerDist * centerDist) / (2 * centerDist);
-          
-          // 计算垂直于连线方向的距离
-          const h = Math.sqrt(r1 * r1 - a * a);
-          
-          // 两圆心连线的单位向量
-          const ux = arc.cx / centerDist;
-          const uy = arc.cy / centerDist;
-          
-          // 投影点坐标（在两圆心连线上）
-          const px = a * ux;
-          const py = a * uy;
-          
-          // 垂直方向的单位向量
-          const vx = -uy;
-          const vy = ux;
-          
-          // 两个交点坐标
-          const intersect1X = px + h * vx;
-          const intersect1Y = py + h * vy;
-          const intersect2X = px - h * vx;
-          const intersect2Y = py - h * vy;
-          
-          // 检查p1和p2是否超出内圆
-          const p1Dist = Math.sqrt(p1x ** 2 + p1y ** 2);
-          const p2Dist = Math.sqrt(p2x ** 2 + p2y ** 2);
-          
-          // 如果p1超出内圆（距离小于innerR），用交点替换
-          if (p1Dist < clipInnerR) {
-            // 选择距离p1更近的交点
-            const dist1 = Math.sqrt((p1x - intersect1X) ** 2 + (p1y - intersect1Y) ** 2);
-            const dist2 = Math.sqrt((p1x - intersect2X) ** 2 + (p1y - intersect2Y) ** 2);
-            if (dist1 < dist2) {
-              p1x = intersect1X;
-              p1y = intersect1Y;
-            } else {
-              p1x = intersect2X;
-              p1y = intersect2Y;
-            }
-            console.log(`  Clipped p1 to inner circle: (${p1x.toFixed(2)}, ${p1y.toFixed(2)})`);
-          }
-          
-          // 如果p2超出内圆，用交点替换
-          if (p2Dist < clipInnerR) {
-            const dist1 = Math.sqrt((p2x - intersect1X) ** 2 + (p2y - intersect1Y) ** 2);
-            const dist2 = Math.sqrt((p2x - intersect2X) ** 2 + (p2y - intersect2Y) ** 2);
-            if (dist1 < dist2) {
-              p2x = intersect1X;
-              p2y = intersect1Y;
-            } else {
-              p2x = intersect2X;
-              p2y = intersect2Y;
-            }
-            console.log(`  Clipped p2 to inner circle: (${p2x.toFixed(2)}, ${p2y.toFixed(2)})`);
-          }
-        }
-      }
       
       // Calculate DXF ARC angles (relative to arc center)
       let a1 = Math.atan2(p1y - arc.cy, p1x - arc.cx) * 180 / Math.PI;
