@@ -49,14 +49,14 @@ export function LampshadeVisualization({
         <h3 className="text-lg font-semibold text-foreground">
           {activeTab === "3d" ? "灯罩立体图" : "展开图"}
         </h3>
-        <div className="flex justify-center bg-white rounded-lg border border-border p-4 min-h-96">
+        <div className="flex justify-center bg-background rounded-lg border border-border p-4 min-h-96">
           <svg
             ref={svgRef}
             width="100%"
             height="100%"
             viewBox="0 0 400 400"
             className="max-w-full max-h-96"
-            style={{ background: "#fafafa" }}
+            style={{ background: "transparent" }}
           />
         </div>
       </div>
@@ -109,19 +109,21 @@ function render3DViewConical(svg: SVGSVGElement, result: CalculationResult) {
 
   const outlineGroup = createSvgElement("g");
 
-  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
-  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
-  appendLine(outlineGroup, topLeftX, topY, topRightX, topY, "#0d47a1", 2);
-  appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, "#0d47a1", 2);
+  const primaryColor = getThemeColor('primary');
+  const accentColor = getThemeColor('accent');
+  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, primaryColor, 2);
+  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, primaryColor, 2);
+  appendLine(outlineGroup, topLeftX, topY, topRightX, topY, primaryColor, 2);
+  appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, primaryColor, 2);
 
   svg.appendChild(outlineGroup);
 
   const midX = (topLeftX + bottomLeftX) / 2;
   const midY = (topY + bottomY) / 2;
 
-  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, "#ff6b35", 1, "4,4");
+  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, accentColor, 1, "4,4");
 
-  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, "#ff6b35");
+  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, accentColor);
 
   addDimensionLine(svg, topLeftX, topY - 30, topRightX, topY - 30, `Ø${result.topDiameter.toFixed(0)}mm`, "top");
   addDimensionLine(svg, bottomLeftX, bottomY + 30, bottomRightX, bottomY + 30, `Ø${result.bottomDiameter.toFixed(0)}mm`, "bottom");
@@ -156,18 +158,20 @@ function render3DViewPolygonal(svg: SVGSVGElement, result: PolygonLampshadeResul
 
   const outlineGroup = createSvgElement("g");
 
-  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
-  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
-  appendLine(outlineGroup, topLeftX, topY, topRightX, topY, "#0d47a1", 2);
-  appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, "#0d47a1", 2);
+  const primaryColor = getThemeColor('primary');
+  const accentColor = getThemeColor('accent');
+  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, primaryColor, 2);
+  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, primaryColor, 2);
+  appendLine(outlineGroup, topLeftX, topY, topRightX, topY, primaryColor, 2);
+  appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, primaryColor, 2);
 
   svg.appendChild(outlineGroup);
 
   const midX = (topLeftX + bottomLeftX) / 2;
   const midY = (topY + bottomY) / 2;
 
-  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, "#ff6b35", 1, "4,4");
-  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, "#ff6b35");
+  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, accentColor, 1, "4,4");
+  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, accentColor);
 
   addDimensionLine(svg, topLeftX, topY - 30, topRightX, topY - 30, `Ø${result.topDiameter.toFixed(0)}mm (${result.sides}边)`, "top");
   addDimensionLine(svg, bottomLeftX, bottomY + 30, bottomRightX, bottomY + 30, `Ø${result.bottomDiameter.toFixed(0)}mm`, "bottom");
@@ -202,20 +206,22 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
 
   const outlineGroup = createSvgElement("g");
 
-  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, "#0d47a1", 2);
-  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, "#0d47a1", 2);
+  const primaryColor = getThemeColor('primary');
+  const accentColor = getThemeColor('accent');
+  appendLine(outlineGroup, topLeftX, topY, bottomLeftX, bottomY, primaryColor, 2);
+  appendLine(outlineGroup, topRightX, topY, bottomRightX, bottomY, primaryColor, 2);
 
   // Top edge (wavy or straight based on topWave setting)
   if (result.topWave) {
     const topWavePath = generateSineWavePath(topLeftX, topY, topRightX, topY, result.waveCount || 3, 8);
     const topWaveEl = createSvgElement("path");
     topWaveEl.setAttribute("d", topWavePath);
-    topWaveEl.setAttribute("stroke", "#0d47a1");
+    topWaveEl.setAttribute("stroke", primaryColor);
     topWaveEl.setAttribute("stroke-width", "2");
     topWaveEl.setAttribute("fill", "none");
     outlineGroup.appendChild(topWaveEl);
   } else {
-    appendLine(outlineGroup, topLeftX, topY, topRightX, topY, "#0d47a1", 2);
+    appendLine(outlineGroup, topLeftX, topY, topRightX, topY, primaryColor, 2);
   }
 
   // Bottom edge (wavy or straight based on bottomWave setting)
@@ -223,12 +229,12 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
     const bottomWavePath = generateSineWavePath(bottomLeftX, bottomY, bottomRightX, bottomY, result.waveCount || 3, 8);
     const bottomWaveEl = createSvgElement("path");
     bottomWaveEl.setAttribute("d", bottomWavePath);
-    bottomWaveEl.setAttribute("stroke", "#0d47a1");
+    bottomWaveEl.setAttribute("stroke", primaryColor);
     bottomWaveEl.setAttribute("stroke-width", "2");
     bottomWaveEl.setAttribute("fill", "none");
     outlineGroup.appendChild(bottomWaveEl);
   } else {
-    appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, "#0d47a1", 2);
+    appendLine(outlineGroup, bottomLeftX, bottomY, bottomRightX, bottomY, primaryColor, 2);
   }
 
   svg.appendChild(outlineGroup);
@@ -236,8 +242,8 @@ function render3DViewWaveform(svg: SVGSVGElement, result: WaveformLampshadeResul
   const midX = (topLeftX + bottomLeftX) / 2;
   const midY = (topY + bottomY) / 2;
 
-  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, "#ff6b35", 1, "4,4");
-  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, "#ff6b35");
+  appendLine(svg, topLeftX - 40, topY, bottomLeftX - 40, bottomY, accentColor, 1, "4,4");
+  appendText(svg, midX - 50, midY, `H: ${result.slantHeight.toFixed(0)}mm`, 12, accentColor);
 
   addDimensionLine(svg, topLeftX, topY - 30, topRightX, topY - 30, `Ø${result.topDiameter.toFixed(0)}mm`, "top");
   addDimensionLine(svg, bottomLeftX, bottomY + 30, bottomRightX, bottomY + 30, `Ø${result.bottomDiameter.toFixed(0)}mm`, "bottom");
@@ -263,11 +269,14 @@ function renderUnfoldedViewConical(svg: SVGSVGElement, result: CalculationResult
   const sectorGroup = createSvgElement("g");
   sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
+  const primaryColor = getThemeColor('primary');
+  const fillColor = getThemeColor('fill');
+
   // Outer arc
   const outerArcPath = describeArc(0, 0, outerR, 0, angle);
   const outerArc = createSvgElement("path");
   outerArc.setAttribute("d", outerArcPath);
-  outerArc.setAttribute("stroke", "#0d47a1");
+  outerArc.setAttribute("stroke", primaryColor);
   outerArc.setAttribute("stroke-width", "2");
   outerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(outerArc);
@@ -276,35 +285,35 @@ function renderUnfoldedViewConical(svg: SVGSVGElement, result: CalculationResult
   const innerArcPath = describeArc(0, 0, innerR, 0, angle);
   const innerArc = createSvgElement("path");
   innerArc.setAttribute("d", innerArcPath);
-  innerArc.setAttribute("stroke", "#0d47a1");
+  innerArc.setAttribute("stroke", primaryColor);
   innerArc.setAttribute("stroke-width", "2");
   innerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(innerArc);
 
   // Left radial line (from origin to outerR along 0 angle)
-  appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
+  appendLine(sectorGroup, innerR, 0, outerR, 0, primaryColor, 2);
 
   // Right radial line
   const rightOuterX = outerR * Math.cos(angle);
   const rightOuterY = outerR * Math.sin(angle);
   const rightInnerX = innerR * Math.cos(angle);
   const rightInnerY = innerR * Math.sin(angle);
-  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
+  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, primaryColor, 2);
 
   // Fill
   const fillPath = createSvgElement("path");
   const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
   fillPath.setAttribute("d", pathData);
-  fillPath.setAttribute("fill", "#e3f2fd");
+  fillPath.setAttribute("fill", fillColor);
   fillPath.setAttribute("opacity", "0.5");
   sectorGroup.appendChild(fillPath);
 
   svg.appendChild(sectorGroup);
 
   const textOffset = 20;
-  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}°`, 12, "#0d47a1");
+  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, primaryColor);
+  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, primaryColor);
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}°`, 12, primaryColor);
 }
 
 function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshadeResult) {
@@ -325,11 +334,14 @@ function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshad
   const sectorGroup = createSvgElement("g");
   sectorGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
 
+  const primaryColor = getThemeColor('primary');
+  const fillColor = getThemeColor('fill');
+
   // Outer arc
   const outerArcPath = describeArc(0, 0, outerR, 0, totalAngle);
   const outerArc = createSvgElement("path");
   outerArc.setAttribute("d", outerArcPath);
-  outerArc.setAttribute("stroke", "#0d47a1");
+  outerArc.setAttribute("stroke", primaryColor);
   outerArc.setAttribute("stroke-width", "2");
   outerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(outerArc);
@@ -338,20 +350,20 @@ function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshad
   const innerArcPath = describeArc(0, 0, innerR, 0, totalAngle);
   const innerArc = createSvgElement("path");
   innerArc.setAttribute("d", innerArcPath);
-  innerArc.setAttribute("stroke", "#0d47a1");
+  innerArc.setAttribute("stroke", primaryColor);
   innerArc.setAttribute("stroke-width", "2");
   innerArc.setAttribute("fill", "none");
   sectorGroup.appendChild(innerArc);
 
   // Left radial line
-  appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
+  appendLine(sectorGroup, innerR, 0, outerR, 0, primaryColor, 2);
 
   // Right radial line
   const rightOuterX = outerR * Math.cos(totalAngle);
   const rightOuterY = outerR * Math.sin(totalAngle);
   const rightInnerX = innerR * Math.cos(totalAngle);
   const rightInnerY = innerR * Math.sin(totalAngle);
-  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
+  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, primaryColor, 2);
 
   // Dividing lines for each face
   const singleAngle = (result.singleFaceSectorAngle * Math.PI) / 180;
@@ -361,23 +373,23 @@ function renderUnfoldedViewPolygonal(svg: SVGSVGElement, result: PolygonLampshad
     const oy = outerR * Math.sin(a);
     const ix = innerR * Math.cos(a);
     const iy = innerR * Math.sin(a);
-    appendLine(sectorGroup, ix, iy, ox, oy, "#0d47a1", 1, "2,2");
+    appendLine(sectorGroup, ix, iy, ox, oy, primaryColor, 1, "2,2");
   }
 
   // Fill
   const fillPath = createSvgElement("path");
   const pathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 0 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 0 0 ${innerR} 0 Z`;
   fillPath.setAttribute("d", pathData);
-  fillPath.setAttribute("fill", "#e3f2fd");
+  fillPath.setAttribute("fill", fillColor);
   fillPath.setAttribute("opacity", "0.5");
   sectorGroup.appendChild(fillPath);
 
   svg.appendChild(sectorGroup);
 
   const textOffset = 20;
-  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.singleFaceInnerRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.singleFaceOuterRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX + 20, centerY + 30, `θ=${result.totalSectorAngle.toFixed(1)}° (${result.sides}面)`, 12, "#0d47a1");
+  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.singleFaceInnerRadius.toFixed(1)}`, 12, primaryColor);
+  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.singleFaceOuterRadius.toFixed(1)}`, 12, primaryColor);
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.totalSectorAngle.toFixed(1)}° (${result.sides}面)`, 12, primaryColor);
 }
 
 /**
@@ -413,9 +425,11 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   const fillPathData = `M ${outerR} 0 A ${outerR} ${outerR} 0 ${largeArc} 1 ${rightOuterX} ${rightOuterY} L ${rightInnerX} ${rightInnerY} A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerR} 0 Z`;
   const fillPath = createSvgElement("path");
   fillPath.setAttribute("d", fillPathData);
-  fillPath.setAttribute("fill", "#e3f2fd");
+  fillPath.setAttribute("fill", getThemeColor('fill'));
   fillPath.setAttribute("opacity", "0.3");
   sectorGroup.appendChild(fillPath);
+
+  const primaryColor = getThemeColor('primary');
 
   // Helper: generate wave arc path for a given base radius
   const generateWaveArcPath = (baseR: number): string => {
@@ -496,7 +510,7 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
     const outerWavePath = generateWaveArcPath(outerR);
     const outerWave = createSvgElement("path");
     outerWave.setAttribute("d", outerWavePath);
-    outerWave.setAttribute("stroke", "#0d47a1");
+    outerWave.setAttribute("stroke", primaryColor);
     outerWave.setAttribute("stroke-width", "2");
     outerWave.setAttribute("fill", "none");
     sectorGroup.appendChild(outerWave);
@@ -505,7 +519,7 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
     const outerArcPath = describeArc(0, 0, outerR, 0, sectorAngleRad);
     const outerArc = createSvgElement("path");
     outerArc.setAttribute("d", outerArcPath);
-    outerArc.setAttribute("stroke", "#0d47a1");
+    outerArc.setAttribute("stroke", primaryColor);
     outerArc.setAttribute("stroke-width", "2");
     outerArc.setAttribute("fill", "none");
     sectorGroup.appendChild(outerArc);
@@ -516,7 +530,7 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
     const innerWavePath = generateWaveArcPath(innerR);
     const innerWave = createSvgElement("path");
     innerWave.setAttribute("d", innerWavePath);
-    innerWave.setAttribute("stroke", "#0d47a1");
+    innerWave.setAttribute("stroke", primaryColor);
     innerWave.setAttribute("stroke-width", "2");
     innerWave.setAttribute("fill", "none");
     sectorGroup.appendChild(innerWave);
@@ -525,17 +539,17 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
     const innerArcPath = describeArc(0, 0, innerR, 0, sectorAngleRad);
     const innerArc = createSvgElement("path");
     innerArc.setAttribute("d", innerArcPath);
-    innerArc.setAttribute("stroke", "#0d47a1");
+    innerArc.setAttribute("stroke", primaryColor);
     innerArc.setAttribute("stroke-width", "2");
     innerArc.setAttribute("fill", "none");
     sectorGroup.appendChild(innerArc);
   }
 
   // Left radial line
-  appendLine(sectorGroup, innerR, 0, outerR, 0, "#0d47a1", 2);
+  appendLine(sectorGroup, innerR, 0, outerR, 0, primaryColor, 2);
 
   // Right radial line
-  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, "#0d47a1", 2);
+  appendLine(sectorGroup, rightInnerX, rightInnerY, rightOuterX, rightOuterY, primaryColor, 2);
 
   svg.appendChild(sectorGroup);
 
@@ -544,10 +558,9 @@ function renderUnfoldedViewWaveform(svg: SVGSVGElement, result: WaveformLampshad
   if (result.topWave) waveInfo.push("上口");
   if (result.bottomWave) waveInfo.push("下口");
   const textOffset = 20;
-  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, "#0d47a1");
-  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}° (${result.waveCount}波, ${waveInfo.join('+')})`, 12, "#0d47a1");
-}
+  appendText(svg, centerX - 80, centerY - innerR - textOffset, `R=${result.innerRadius.toFixed(1)}`, 12, primaryColor);
+  appendText(svg, centerX - 80, centerY - outerR - textOffset, `r=${result.outerRadius.toFixed(1)}`, 12, primaryColor);
+  appendText(svg, centerX + 20, centerY + 30, `θ=${result.sectorAngle.toFixed(1)}° (${result.waveCount}波, ${waveInfo.join('+')})​`, 12, primaryColor);}
 
 // ==================== SVG Helpers ====================
 
@@ -579,18 +592,30 @@ function appendText(parent: SVGElement | SVGSVGElement, x: number, y: number, co
   parent.appendChild(text);
 }
 
+function getThemeColor(type: 'grid' | 'primary' | 'accent' | 'fill'): string {
+  const isDark = document.documentElement.classList.contains('dark');
+  switch (type) {
+    case 'grid': return isDark ? '#2a3a4e' : '#e0e0e0';
+    case 'primary': return isDark ? '#5b9bd5' : '#0d47a1';
+    case 'accent': return isDark ? '#ff8c5a' : '#ff6b35';
+    case 'fill': return isDark ? '#1e2d3f' : '#e3f2fd';
+    default: return isDark ? '#5b9bd5' : '#0d47a1';
+  }
+}
+
 function drawGrid(svg: SVGSVGElement, width: number, height: number) {
   const gridSize = 20;
   const gridGroup = createSvgElement("g");
-  gridGroup.setAttribute("stroke", "#e0e0e0");
+  const gridColor = getThemeColor('grid');
+  gridGroup.setAttribute("stroke", gridColor);
   gridGroup.setAttribute("stroke-width", "0.5");
 
   for (let i = 0; i <= width; i += gridSize) {
-    appendLine(gridGroup as any, i, 0, i, height, "#e0e0e0", 0.5);
+    appendLine(gridGroup as any, i, 0, i, height, gridColor, 0.5);
   }
 
   for (let i = 0; i <= height; i += gridSize) {
-    appendLine(gridGroup as any, 0, i, width, i, "#e0e0e0", 0.5);
+    appendLine(gridGroup as any, 0, i, width, i, gridColor, 0.5);
   }
 
   svg.appendChild(gridGroup);
@@ -638,15 +663,16 @@ function generateSineWavePath(x1: number, y1: number, x2: number, y2: number, wa
 }
 
 function addDimensionLine(svg: SVGSVGElement, x1: number, y1: number, x2: number, y2: number, label: string, position: "top" | "bottom") {
-  appendLine(svg, x1, y1, x2, y2, "#ff6b35", 1);
+  const accentColor = getThemeColor('accent');
+  appendLine(svg, x1, y1, x2, y2, accentColor, 1);
 
   const capSize = 5;
-  appendLine(svg, x1, y1 - capSize, x1, y1 + capSize, "#ff6b35", 1);
-  appendLine(svg, x2, y2 - capSize, x2, y2 + capSize, "#ff6b35", 1);
+  appendLine(svg, x1, y1 - capSize, x1, y1 + capSize, accentColor, 1);
+  appendLine(svg, x2, y2 - capSize, x2, y2 + capSize, accentColor, 1);
 
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
   const offsetY = position === "top" ? -15 : 15;
 
-  appendText(svg, midX, midY + offsetY, label, 12, "#ff6b35");
+  appendText(svg, midX, midY + offsetY, label, 12, accentColor);
 }
