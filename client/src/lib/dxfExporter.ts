@@ -496,6 +496,12 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         const r1 = clipInnerR;  // 内圆半径
         const r2 = arc.r;       // 波峰圆半径
         
+        // 如果波峰圆完全在内圆以内（圆心到原点的距离 + 圆半径 < 内圆半径），跳过这个圆弧
+        if (centerDist + r2 < r1) {
+          console.log(`  Skipping arc ${i+1}: completely inside inner circle`);
+          continue;
+        }
+        
         // 检查两圆是否相交
         if (centerDist < r1 + r2 && centerDist > Math.abs(r1 - r2)) {
           // 计算两圆心连线上的投影距离
