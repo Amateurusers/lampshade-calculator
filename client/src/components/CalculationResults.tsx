@@ -117,40 +117,6 @@ export function CalculationResults({ result }: CalculationResultsProps) {
         </Card>
       )}
 
-      {/* Unfolding Pattern (Cone only) */}
-      {result.innerRadius !== undefined && (
-        <Card className="p-4 bg-secondary shadow-sm border-border">
-          <h3 className="text-sm font-semibold text-secondary-foreground mb-3">
-            展开图参数
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <ResultItem
-              label="内半径"
-              value={formatNumber(result.innerRadius, 2)}
-              unit="mm"
-              highlight
-            />
-            <ResultItem
-              label="外半径"
-              value={formatNumber(result.outerRadius, 2)}
-              unit="mm"
-              highlight
-            />
-            <ResultItem
-              label="扇形角度"
-              value={formatNumber(result.sectorAngle, 2)}
-              unit="°"
-              highlight
-            />
-            <ResultItem
-              label="弧长"
-              value={formatNumber(result.unfoldedArcLength, 2)}
-              unit="mm"
-              highlight
-            />
-          </div>
-        </Card>
-      )}
 
       {/* Material Dimensions */}
       {result.materialWidth !== undefined && (
