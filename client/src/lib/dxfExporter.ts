@@ -578,17 +578,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
       
       console.log(`  Normalized: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°, spanCCW=${spanCCW.toFixed(2)}°`);
       
-      // DXF draws arcs counter-clockwise. If the CCW span > 180°, 
-      // it means the short arc is in the clockwise direction.
-      // In that case, we need to reverse the direction by swapping angles
-      if (spanCCW > 180) {
-        // Swap start and end to draw the short arc
-        const temp = a1;
-        a1 = a2;
-        a2 = temp;
-        // Now recalculate span
-        spanCCW = 360 - spanCCW;
-      }
+      // 不再交换角度，因为边界波峰圆可能需要绘制超过 180° 的圆弧
+      // 直接使用计算出的角度，保持逆时针方向
       
       // Ensure a2 > a1 for CCW drawing (add 360 if needed)
       while (a2 <= a1) {
@@ -618,9 +609,15 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
     console.log('=== Drawing inner wave arcs ===');
     const arcs = generateWaveArcs(innerR);
     console.log(`Generated ${arcs.length} inner wave arcs`);
-    drawWaveArcs(arcs);
+    if (arcs.length > 0) {
+      drawWaveArcs(arcs);
+    } else {
+      console.error('No inner wave arcs generated, skipping inner arc drawing');
+    }
   } else {
-    addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
+    // 不绘制内圆基准圆，因为它会产生多余线条
+    // addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
+    console.log('Inner wave disabled, skipping inner arc');
   }
 
   // Draw left radial line (from inner to outer at start angle)
