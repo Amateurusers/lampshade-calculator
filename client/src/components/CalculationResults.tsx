@@ -39,36 +39,6 @@ export function CalculationResults({ result }: CalculationResultsProps) {
         <span className="text-xs font-medium">参数有效，计算完成</span>
       </div>
 
-      {/* Basic Measurements */}
-      <Card className="p-4 bg-card shadow-sm border-border">
-        <h3 className="text-sm font-semibold text-foreground mb-3">基本尺寸</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <ResultItem
-            label="上口直径"
-            value={formatNumber(result.topDiameter, 2)}
-            unit="mm"
-          />
-          <ResultItem
-            label="下口直径"
-            value={formatNumber(result.bottomDiameter, 2)}
-            unit="mm"
-          />
-          {result.slantHeight !== undefined && (
-            <ResultItem
-              label="斜高"
-              value={formatNumber(result.slantHeight, 2)}
-              unit="mm"
-            />
-          )}
-          {result.height !== undefined && (
-            <ResultItem
-              label="灯罩高度"
-              value={formatNumber(result.height, 2)}
-              unit="mm"
-            />
-          )}
-        </div>
-      </Card>
 
       {/* Circumferences */}
       {result.topCircumference !== undefined && (
@@ -205,32 +175,6 @@ export function CalculationResults({ result }: CalculationResultsProps) {
         </Card>
       )}
 
-      {/* Cone Apex Info */}
-      {result.apexDistance !== undefined && (
-        <Card className="p-4 bg-card shadow-sm border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-3">圆锥顶点</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <ResultItem
-              label="顶点距离"
-              value={
-                result.apexDistance > 1000
-                  ? "∞ (圆柱)"
-                  : formatNumber(result.apexDistance, 2)
-              }
-              unit="mm"
-            />
-            <ResultItem
-              label="总斜高"
-              value={
-                result.totalSlantHeight > 1000
-                  ? "∞ (圆柱)"
-                  : formatNumber(result.totalSlantHeight, 2)
-              }
-              unit="mm"
-            />
-          </div>
-        </Card>
-      )}
 
       {/* Surface Area */}
       {result.totalSurfaceArea !== undefined && (
