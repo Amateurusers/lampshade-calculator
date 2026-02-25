@@ -32,17 +32,17 @@ export function CalculationResults({ result }: CalculationResultsProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Validation Status */}
       <div className="flex items-center gap-2 text-green-600">
-        <CheckCircle className="w-5 h-5" />
-        <span className="text-sm font-medium">参数有效，计算完成</span>
+        <CheckCircle className="w-4 h-4" />
+        <span className="text-xs font-medium">参数有效，计算完成</span>
       </div>
 
       {/* Basic Measurements */}
-      <Card className="p-6 bg-card shadow-sm border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-4">基本尺寸</h3>
-        <div className="grid grid-cols-2 gap-6">
+      <Card className="p-4 bg-card shadow-sm border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-3">基本尺寸</h3>
+        <div className="grid grid-cols-2 gap-3">
           <ResultItem
             label="上口直径"
             value={formatNumber(result.topDiameter, 2)}
@@ -72,9 +72,9 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Circumferences */}
       {result.topCircumference !== undefined && (
-        <Card className="p-6 bg-card shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">周长计算</h3>
-          <div className="grid grid-cols-2 gap-6">
+        <Card className="p-4 bg-card shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-foreground mb-3">周长计算</h3>
+          <div className="grid grid-cols-2 gap-3">
             <ResultItem
               label="上口周长"
               value={formatNumber(result.topCircumference, 2)}
@@ -91,9 +91,9 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Polygon-specific results */}
       {result.sides !== undefined && (
-        <Card className="p-6 bg-card shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">多边形参数</h3>
-          <div className="grid grid-cols-2 gap-6">
+        <Card className="p-4 bg-card shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-foreground mb-3">多边形参数</h3>
+          <div className="grid grid-cols-2 gap-3">
             <ResultItem
               label="边数"
               value={String(result.sides)}
@@ -120,9 +120,9 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Waveform-specific results */}
       {result.waveCount !== undefined && (
-        <Card className="p-6 bg-card shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">波浪形参数</h3>
-          <div className="grid grid-cols-2 gap-6">
+        <Card className="p-4 bg-card shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-foreground mb-3">波浪形参数</h3>
+          <div className="grid grid-cols-2 gap-3">
             <ResultItem
               label="波数"
               value={String(result.waveCount)}
@@ -149,11 +149,11 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Unfolding Pattern (Cone only) */}
       {result.innerRadius !== undefined && (
-        <Card className="p-6 bg-secondary shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-secondary-foreground mb-4">
+        <Card className="p-4 bg-secondary shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-secondary-foreground mb-3">
             展开图参数
           </h3>
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3">
             <ResultItem
               label="内半径"
               value={formatNumber(result.innerRadius, 2)}
@@ -184,20 +184,20 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Material Dimensions */}
       {result.materialWidth !== undefined && (
-        <Card className="p-6 bg-card shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">
+        <Card className="p-4 bg-card shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-foreground mb-3">
             开料尺寸
           </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
-              <span className="text-sm font-medium text-foreground">推荐材料宽度</span>
-              <span className="text-xl font-bold text-primary">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+              <span className="text-xs font-medium text-foreground">推荐材料宽度</span>
+              <span className="text-base font-bold text-primary">
                 {formatNumber(result.materialWidth, 1)} mm
               </span>
             </div>
-            <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
-              <span className="text-sm font-medium text-foreground">推荐材料高度</span>
-              <span className="text-xl font-bold text-primary">
+            <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+              <span className="text-xs font-medium text-foreground">推荐材料高度</span>
+              <span className="text-base font-bold text-primary">
                 {formatNumber(result.materialHeight, 1)} mm
               </span>
             </div>
@@ -207,9 +207,9 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Cone Apex Info */}
       {result.apexDistance !== undefined && (
-        <Card className="p-6 bg-card shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">圆锥顶点</h3>
-          <div className="grid grid-cols-2 gap-6">
+        <Card className="p-4 bg-card shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-foreground mb-3">圆锥顶点</h3>
+          <div className="grid grid-cols-2 gap-3">
             <ResultItem
               label="顶点距离"
               value={
@@ -234,11 +234,11 @@ export function CalculationResults({ result }: CalculationResultsProps) {
 
       {/* Surface Area */}
       {result.totalSurfaceArea !== undefined && (
-        <Card className="p-6 bg-card shadow-sm border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">表面积</h3>
-          <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
-            <span className="text-sm font-medium text-foreground">总表面积</span>
-            <span className="text-xl font-bold text-primary">
+        <Card className="p-4 bg-card shadow-sm border-border">
+          <h3 className="text-sm font-semibold text-foreground mb-3">表面积</h3>
+          <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+            <span className="text-xs font-medium text-foreground">总表面积</span>
+            <span className="text-base font-bold text-primary">
               {formatNumber(result.totalSurfaceArea, 2)} mm²
             </span>
           </div>
@@ -263,11 +263,11 @@ function ResultItem({
   highlight?: boolean;
 }) {
   return (
-    <div className={highlight ? "p-3 bg-primary/5 rounded-lg" : ""}>
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-bold text-primary">{value}</span>
-        <span className="text-xs text-muted-foreground">{unit}</span>
+    <div className={highlight ? "p-2 bg-primary/5 rounded-lg" : ""}>
+      <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
+      <div className="flex items-baseline gap-0.5">
+        <span className="text-lg font-bold text-primary">{value}</span>
+        <span className="text-[10px] text-muted-foreground">{unit}</span>
       </div>
     </div>
   );

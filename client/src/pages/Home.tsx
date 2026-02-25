@@ -310,9 +310,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-6">
           {/* Left Column - Parameters */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 min-w-0">
             {lampshadeType === "cone" && (
               <ParameterInput params={coneParams} onChange={setConeParams} />
             )}
@@ -555,9 +555,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right Column - Results and Visualization */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Visualization Tabs */}
+          {/* Middle Column - Visualization */}
+          <div className="min-w-0">
             <Tabs
               value={visualizationTab}
               onValueChange={(value) =>
@@ -581,40 +580,46 @@ export default function Home() {
                 />
               </TabsContent>
             </Tabs>
+          </div>
 
+          {/* Right Column - Results & Export */}
+          <div className="min-w-0 space-y-5">
             {/* Results */}
             <CalculationResults result={getCurrentResult()} />
 
             {/* Export Section */}
-            <div className="bg-card shadow-sm border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
+            <div className="bg-card shadow-sm border border-border rounded-lg p-5">
+              <h3 className="text-base font-semibold text-foreground mb-3">
                 导出结果
               </h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <Button
                   onClick={handleExportJSON}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 text-xs"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-3.5 h-3.5" />
                   JSON
                 </Button>
                 <Button
                   onClick={handleExportCSV}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground flex items-center gap-2"
+                  size="sm"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground flex items-center gap-1.5 text-xs"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-3.5 h-3.5" />
                   CSV
                 </Button>
                 <Button
                   onClick={handleExportDXF}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 text-xs"
                 >
-                  <FileJson className="w-4 h-4" />
+                  <FileJson className="w-3.5 h-3.5" />
                   DXF
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-4">
-                JSON/CSV 包含计算参数和结果，DXF 可导入 CAD 或激光切割机
+              <p className="text-xs text-muted-foreground mt-3">
+                JSON/CSV 包含参数和结果，DXF 可导入 CAD
               </p>
             </div>
           </div>
