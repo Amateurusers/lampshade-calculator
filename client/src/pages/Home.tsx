@@ -651,7 +651,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2026 灯罩开料计算器 | 专业制造工具</p>
+            <p>© 2026 灯罩开料计算器 | 专业制造工具 | LIUSHUAI</p>
           </div>
         </div>
       </footer>
