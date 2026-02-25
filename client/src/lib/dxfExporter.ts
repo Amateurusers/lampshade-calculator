@@ -468,8 +468,50 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         const rightY2 = distRight2 * Math.sin(startAngleRad);
         
         // 选择在扇形内的交点（远离原点的那个）
-        const leftAngle = Math.atan2(leftY2 - arc.cy, leftX2 - arc.cx) * 180 / Math.PI;
-        const rightAngle = Math.atan2(rightY2 - arc.cy, rightX2 - arc.cx) * 180 / Math.PI;
+        let leftAngle = Math.atan2(leftY2 - arc.cy, leftX2 - arc.cx) * 180 / Math.PI;
+        let rightAngle = Math.atan2(rightY2 - arc.cy, rightX2 - arc.cx) * 180 / Math.PI;
+        
+        // 内圆裁剪：检查边界波峰圆是否与内圆相交
+        if (clipInnerR) {
+          const minDist = Math.abs(centerDist - arc.r);
+          const maxDist = centerDist + arc.r;
+          
+          if (minDist < clipInnerR && clipInnerR < maxDist) {
+            console.log(`  Boundary peak intersects inner circle, clipping...`);
+            
+            // 计算圆与内圆的交点
+            const d = centerDist;
+            const R = arc.r;
+            const r = clipInnerR;
+            
+            // 使用余弦定理计算交点角度
+            const cosAlpha = (d * d + R * R - r * r) / (2 * d * R);
+            const alpha = Math.acos(Math.max(-1, Math.min(1, cosAlpha)));
+            
+            // 两个交点相对于圆心的角度
+            const intersect1Angle = (centerAngle + alpha) * 180 / Math.PI;
+            const intersect2Angle = (centerAngle - alpha) * 180 / Math.PI;
+            
+            console.log(`  Inner circle intersection angles: ${intersect1Angle.toFixed(2)}°, ${intersect2Angle.toFixed(2)}°`);
+            
+            // 检查哪些端点需要被裁剪
+            // 判断点是否在内圆以内
+            const rightDist = Math.sqrt(rightX2 ** 2 + rightY2 ** 2);
+            const leftDist = Math.sqrt(leftX2 ** 2 + leftY2 ** 2);
+            
+            if (rightDist < clipInnerR) {
+              // 右端点在内圆以内，替换为交点
+              rightAngle = i === 0 ? intersect2Angle : intersect1Angle;
+              console.log(`  Right endpoint clipped to ${rightAngle.toFixed(2)}°`);
+            }
+            
+            if (leftDist < clipInnerR) {
+              // 左端点在内圆以内，替换为交点
+              leftAngle = i === 0 ? intersect1Angle : intersect2Angle;
+              console.log(`  Left endpoint clipped to ${leftAngle.toFixed(2)}°`);
+            }
+          }
+        }
         
         // 规范化角度到 [0, 360)
         let a1 = rightAngle < 0 ? rightAngle + 360 : rightAngle;
@@ -478,7 +520,7 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         // 确保 a2 > a1 以便逆时针绘制
         if (a2 < a1) a2 += 360;
         
-        console.log(`  Trimmed arc angles: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°`);
+        console.log(`  Final arc angles: a1=${a1.toFixed(2)}°, a2=${a2.toFixed(2)}°`);
         
         addArc(lines, arc.cx, arc.cy, arc.r, a1, a2);
         continue;
@@ -616,10 +658,11 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   // Draw inner arc (small radius = top opening of lampshade)
   if (topWave) {
     const arcs = generateWaveArcs(innerR);
+    console.log(`Generated ${arcs.length} arcs for inner circle`);
     drawWaveArcs(arcs);
-  } else {
-    addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
+  // Note: When topWave is false, we don't draw the inner arc at all
+  // because it would create unwanted lines in the DXF
 
   // Draw left radial line (from inner to outer at start angle)
   const leftOuterX = outerR * Math.cos(startAngleRad);
