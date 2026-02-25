@@ -468,90 +468,8 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
         const rightY2 = distRight2 * Math.sin(startAngleRad);
         
         // 选择在扇形内的交点（远离原点的那个）
-        let leftX = leftX2, leftY = leftY2;
-        let rightX = rightX2, rightY = rightY2;
-        
-        // 如果有内圆裁剪，检查交点是否在内圆以内
-        if (clipInnerR) {
-          const leftDist = Math.sqrt(leftX ** 2 + leftY ** 2);
-          const rightDist = Math.sqrt(rightX ** 2 + rightY ** 2);
-          
-          // 如果交点在内圆以内，需要计算与内圆的交点
-          if (leftDist < clipInnerR) {
-            // 计算圆弧与内圆的交点
-            const dx = arc.cx;
-            const dy = arc.cy;
-            const d = Math.sqrt(dx ** 2 + dy ** 2);
-            
-            if (Math.abs(d - clipInnerR) < arc.r) {
-              // 圆弧与内圆相交
-              const a = (d ** 2 + clipInnerR ** 2 - arc.r ** 2) / (2 * d * clipInnerR);
-              const angleToCenter = Math.atan2(dy, dx);
-              const deltaAngle = Math.acos(Math.max(-1, Math.min(1, a)));
-              
-              const int1Angle = angleToCenter + deltaAngle;
-              const int2Angle = angleToCenter - deltaAngle;
-              
-              const int1X = clipInnerR * Math.cos(int1Angle);
-              const int1Y = clipInnerR * Math.sin(int1Angle);
-              const int2X = clipInnerR * Math.cos(int2Angle);
-              const int2Y = clipInnerR * Math.sin(int2Angle);
-              
-              // 选择靠近左边界的交点
-              const dist1 = Math.sqrt((int1X - leftX) ** 2 + (int1Y - leftY) ** 2);
-              const dist2 = Math.sqrt((int2X - leftX) ** 2 + (int2Y - leftY) ** 2);
-              
-              if (dist1 < dist2) {
-                leftX = int1X;
-                leftY = int1Y;
-              } else {
-                leftX = int2X;
-                leftY = int2Y;
-              }
-              
-              console.log(`  Left boundary point clipped by inner circle: (${leftX.toFixed(2)}, ${leftY.toFixed(2)})`);
-            }
-          }
-          
-          if (rightDist < clipInnerR) {
-            // 计算圆弧与内圆的交点
-            const dx = arc.cx;
-            const dy = arc.cy;
-            const d = Math.sqrt(dx ** 2 + dy ** 2);
-            
-            if (Math.abs(d - clipInnerR) < arc.r) {
-              // 圆弧与内圆相交
-              const a = (d ** 2 + clipInnerR ** 2 - arc.r ** 2) / (2 * d * clipInnerR);
-              const angleToCenter = Math.atan2(dy, dx);
-              const deltaAngle = Math.acos(Math.max(-1, Math.min(1, a)));
-              
-              const int1Angle = angleToCenter + deltaAngle;
-              const int2Angle = angleToCenter - deltaAngle;
-              
-              const int1X = clipInnerR * Math.cos(int1Angle);
-              const int1Y = clipInnerR * Math.sin(int1Angle);
-              const int2X = clipInnerR * Math.cos(int2Angle);
-              const int2Y = clipInnerR * Math.sin(int2Angle);
-              
-              // 选择靠近右边界的交点
-              const dist1 = Math.sqrt((int1X - rightX) ** 2 + (int1Y - rightY) ** 2);
-              const dist2 = Math.sqrt((int2X - rightX) ** 2 + (int2Y - rightY) ** 2);
-              
-              if (dist1 < dist2) {
-                rightX = int1X;
-                rightY = int1Y;
-              } else {
-                rightX = int2X;
-                rightY = int2Y;
-              }
-              
-              console.log(`  Right boundary point clipped by inner circle: (${rightX.toFixed(2)}, ${rightY.toFixed(2)})`);
-            }
-          }
-        }
-        
-        const leftAngle = Math.atan2(leftY - arc.cy, leftX - arc.cx) * 180 / Math.PI;
-        const rightAngle = Math.atan2(rightY - arc.cy, rightX - arc.cx) * 180 / Math.PI;
+        const leftAngle = Math.atan2(leftY2 - arc.cy, leftX2 - arc.cx) * 180 / Math.PI;
+        const rightAngle = Math.atan2(rightY2 - arc.cy, rightX2 - arc.cx) * 180 / Math.PI;
         
         // 规范化角度到 [0, 360)
         let a1 = rightAngle < 0 ? rightAngle + 360 : rightAngle;
@@ -699,9 +617,9 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
   if (topWave) {
     const arcs = generateWaveArcs(innerR);
     drawWaveArcs(arcs);
+  } else {
+    addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
   }
-  // 注意：当 topWave = false 时，也不绘制内圆基准圆
-  // 因为它会与外圆波浪产生视觉冲突
 
   // Draw left radial line (from inner to outer at start angle)
   const leftOuterX = outerR * Math.cos(startAngleRad);
