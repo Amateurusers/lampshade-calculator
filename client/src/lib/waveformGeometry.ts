@@ -50,9 +50,14 @@ function solveThreeCircleTangency(
   const peakAngleRad = (peakAngle * Math.PI) / 180;
   
   // 使用牛顿迭代法求解
-  let peakR = 40; // 初始猜测值
-  const maxIterations = 100;
-  const tolerance = 1e-6;
+  // 优化初始值：根据几何关系估算
+  // 波峰圆与辅助圆内切，与两个波谷圆外切
+  // 粗略估计：波峰圆半径应该在 troughR 到 auxiliaryR/2 之间
+  const dist12 = Math.sqrt((trough1.x - trough2.x) ** 2 + (trough1.y - trough2.y) ** 2);
+  const estimatedPeakR = Math.min(dist12 / 3, auxiliaryR / 3);
+  let peakR = Math.max(troughR * 2, estimatedPeakR); // 初始猜测值
+  const maxIterations = 200; // 增加最大迭代次数
+  const tolerance = 1e-10; // 提高收敛精度到 1e-10
   
   for (let iter = 0; iter < maxIterations; iter++) {
     // 根据内切条件计算波峰圆心位置
@@ -71,7 +76,12 @@ function solveThreeCircleTangency(
     
     // 检查收敛
     if (Math.abs(error1) < tolerance && Math.abs(error2) < tolerance) {
-      return peakR;
+      // 最终验证：确保三个切点条件都满足
+      const finalError = Math.max(Math.abs(error1), Math.abs(error2));
+      if (finalError < 1e-8) { // 实际误差小于 0.01 微米
+        console.log(`三圆相切求解成功: peakR=${peakR.toFixed(6)}, 误差=${finalError.toExponential(2)}`);
+        return peakR;
+      }
     }
     
     // 使用平均误差作为目标函数
@@ -226,9 +236,12 @@ export function calculateWaveformGeometry(
       const adjacentTrough = i === 0 ? troughCircles[0] : troughCircles[troughCircles.length - 1];
       
       // 使用牛顿迭代求解
-      let testPeakR = 40; // 初始猜测值
-      const maxIter = 100;
-      const tol = 1e-6;
+      // 优化初始值
+      const distToTrough = Math.sqrt(adjacentTrough.x ** 2 + adjacentTrough.y ** 2);
+      const estimatedPeakR = Math.min((auxiliaryR - distToTrough + troughRadius) / 2, auxiliaryR / 3);
+      let testPeakR = Math.max(troughRadius * 2, estimatedPeakR); // 初始猜测值
+      const maxIter = 200; // 增加迭代次数
+      const tol = 1e-10; // 提高精度
       
       for (let iter = 0; iter < maxIter; iter++) {
         const peakCenterR = auxiliaryR - testPeakR;
@@ -240,8 +253,12 @@ export function calculateWaveformGeometry(
         const error = dist - (testPeakR + troughRadius);
         
         if (Math.abs(error) < tol) {
-          solvedPeakR = testPeakR;
-          break;
+          // 最终验证
+          if (Math.abs(error) < 1e-8) {
+            console.log(`边界波峰圆求解成功: peakR=${testPeakR.toFixed(6)}, 误差=${Math.abs(error).toExponential(2)}`);
+            solvedPeakR = testPeakR;
+            break;
+          }
         }
         
         // 数值微分

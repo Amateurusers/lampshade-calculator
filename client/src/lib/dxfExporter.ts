@@ -615,7 +615,9 @@ function generateWaveformDXF(result: WaveformLampshadeResult): string {
 
   // Draw inner arc (small radius = top opening of lampshade)
   if (topWave) {
+    console.log('=== Drawing inner wave arcs ===');
     const arcs = generateWaveArcs(innerR);
+    console.log(`Generated ${arcs.length} inner wave arcs`);
     drawWaveArcs(arcs);
   } else {
     addArc(lines, 0, 0, innerR, startAngleDeg, startAngleDeg + sectorAngleDeg);
